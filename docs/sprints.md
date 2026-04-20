@@ -1,7 +1,7 @@
 # Plan de sprints (ECOS)
 
 ## Objetivo
-Entregar un MVP funcional de ECOS con prediccion temprana y un dashboard en Power BI, basado en datos abiertos, con API estable, pipeline reproducible y un chatbot RAG conectado.
+Entregar una version solida y presentable de ECOS (nivel top), con pipeline robusto en PySpark, modelos validados, API estable, dashboard consistente y chatbot RAG integrado, todo reproducible y listo para demo tecnica.
 
 ## Supuestos
 - El dashboard final se construye en Power BI.
@@ -18,91 +18,102 @@ Entregar un MVP funcional de ECOS con prediccion temprana y un dashboard en Powe
 ## Definicion de terminado (Definition of Done)
 Cada sprint debe cerrar con lo siguiente:
 
-- Codigo funcional en main/develop segun flujo.
-- Documentacion minima actualizada (README o docs/).
-- Pruebas basicas ejecutadas (pytest y validaciones de datos).
-- Demo reproducible con datos y endpoints activos.
+- Codigo funcional en develop/main segun flujo.
+- Pipeline reproducible (comando unico o script) sin pasos manuales.
+- Validaciones de datos automatizadas (esquema, nulos, rangos, duplicados).
+- Dataset versionado (snapshots o hash) y registro de cambios.
+- Pruebas ejecutadas (pytest + validaciones de datos).
+- Documentacion actualizada y demo reproducible.
 
 ## Estandares de documentacion y pruebas
+- Pipeline de datos: PySpark + Parquet como formato principal.
+- Validaciones: esquema, rangos, nulos, duplicados y consistencia temporal.
 - API: Swagger/OpenAPI generado por FastAPI en /docs y /openapi.json.
 - Documentos clave: docs/architecture.md, docs/data-dictionary.md, docs/api.md.
-- Pruebas: pytest para API y data pipeline, validaciones de esquema para datos.
-- Power BI: PBIX con data model claro y medidas documentadas.
+- Pruebas: pytest para API y data pipeline, validaciones de datos automatizadas.
+- Power BI: PBIX con data model claro, medidas documentadas y refresh probado.
 
 ---
 
 ## Sprint 0 - Base y definicion
-Objetivo: dejar el proyecto listo para producir datos, servirlos y documentar el plan tecnico.
+Objetivo: dejar el proyecto listo para producir datos con calidad, servirlos y documentar el plan tecnico con estandares de produccion.
 
 ### DE (paso a paso)
-1. Definir esquema del dataset curado (granularidad semana, municipio, enfermedad).
-2. Ingesta minima: SIVIGILA + clima con pipeline reproducible.
-3. Guardar dataset curado v0 en data/processed/.
-4. Crear validaciones de esquema (columnas, tipos, nulos).
+1. Definir esquema del dataset curado (semana, municipio, enfermedad) y documentarlo.
+2. Implementar pipeline PySpark de ingesta minima (SIVIGILA + clima IDEAM).
+3. Generar dataset curado v0 en Parquet y CSV en data/processed/.
+4. Implementar validaciones automatas (esquema, nulos, rangos, duplicados).
+5. Registrar version de datos (snapshot o hash) y data lineage basico.
 
 ### DS (paso a paso)
-1. Baseline rapido (Prophet o XGBoost) con validacion temporal.
-2. Definir metricas objetivo (MAE, RMSE, recall) y umbrales de alerta.
-3. Guardar reporte inicial de metricas en docs/.
+1. Baseline inicial (Prophet y/o XGBoost) con validacion temporal (walk-forward).
+2. Definir metricas objetivo (MAE, RMSE, recall, precision) y umbrales.
+3. Generar reporte de metricas y supuestos en docs/.
 
 ### Dev 1 (paso a paso)
 1. API base con FastAPI, /health y estructura de rutas.
-2. Configuracion de entorno (envs y settings).
-3. Primer set de tests (pytest) para /health.
-4. Verificar Swagger en /docs.
+2. Configuracion de entorno y settings tipados.
+3. Tests basicos (pytest) y logging estructurado.
+4. Verificar Swagger en /docs y documentar ejemplo de uso.
 
 ### Dev 2 (paso a paso)
-Objetivo: crear un prototipo de dashboard en Power BI que sirva como plantilla para datos reales.
+Objetivo: crear un dashboard base en Power BI con datos reales del curado v0.
 
 Necesitas:
 - Power BI Desktop instalado.
-- Un archivo de datos mock en CSV/Excel con columnas minimas: fecha/semana, departamento, municipio, enfermedad, casos.
+- Dataset curado v0 en CSV/Parquet.
 - Esquema esperado del dataset curado (definido por DE).
 
 Pasos:
-1. Crear un archivo de datos mock con 50 a 100 filas y las columnas basicas.
-2. Importar el archivo a Power BI (Get Data).
-3. Definir tipos de datos correctos (fecha, texto, numero).
-4. Crear un modelo de datos simple (una tabla fact, sin relaciones complejas).
-5. Diseñar el layout base:
+1. Importar dataset curado v0 en Power BI (Get Data).
+2. Definir tipos de datos correctos (fecha, texto, numero).
+3. Crear modelo simple (tabla fact + medidas basicas).
+4. Diseñar layout base:
 	- Mapa por departamento.
 	- Serie temporal de casos.
 	- Filtros por enfermedad, departamento, rango de fecha.
-6. Guardar el archivo como PBIX en la carpeta /docs o /frontend (segun acuerdo del equipo).
+5. Guardar PBIX con medidas documentadas.
 
 Por que es importante:
 - Permite validar el flujo de visualizacion desde el inicio.
 - Reduce el riesgo de cambios tardios en el dashboard.
 
 Entregables:
-- Dataset curado v0 + validaciones.
-- Baseline con metricas iniciales.
+- Dataset curado v0 (Parquet/CSV) + validaciones automatas.
+- Baseline con metricas iniciales y reporte.
 - API base operativa + Swagger.
-- PBIX inicial con layout y modelo vacio.
+- PBIX inicial con datos reales.
+
+Estado actual (Sprint 0):
+- DE: completado (pipeline PySpark, curado v0, validaciones).
+- DS: pendiente.
+- Dev 1: pendiente.
+- Dev 2: pendiente.
 
 ---
 
-## Sprint 1 - MVP de datos y API
-Objetivo: exponer datos reales para Power BI y predicciones iniciales.
+## Sprint 1 - Datos y API robusta
+Objetivo: consolidar el pipeline con mas fuentes, exponer datos reales y preparar predicciones iniciales con calidad.
 
 ### DE (paso a paso)
-1. Unir datasets secundarios (vacunacion o movilidad, segun disponibilidad).
-2. Documentar data dictionary en docs/data-dictionary.md.
-3. Versionar dataset curado v1 y dejar snapshot.
+1. Integrar fuentes secundarias (vacunacion, movilidad, RIPS vista agregada).
+2. Normalizar llaves (DANE) y reglas de union.
+3. Versionar dataset curado v1 y generar snapshot.
+4. Actualizar data dictionary en docs/data-dictionary.md.
 
 ### DS (paso a paso)
-1. Modelo v1 con features exogenas.
-2. SHAP basico por variable clave.
-3. Reporte de metricas y comparacion con baseline.
+1. Modelo v1 con features exogenas (clima, movilidad, vacunacion, RIPS).
+2. SHAP basico por variable clave y estabilidad temporal.
+3. Reporte de metricas comparado con baseline.
 
 ### Dev 1 (paso a paso)
 1. Endpoints /predict, /history, /signals (estructura estable).
-2. Salida en formato amigable para Power BI (CSV/JSON).
-3. Tests de endpoints y errores comunes.
+2. Respuestas optimizadas para Power BI (CSV/JSON).
+3. Tests de endpoints y manejo de errores comunes.
 4. Documentacion de API en docs/api.md.
 
 ### Dev 2 (paso a paso)
-Objetivo: conectar el dashboard a datos reales y publicar la version v1.
+Objetivo: conectar el dashboard a datos reales y publicar version v1 con medidas clave.
 
 Necesitas:
 - URL de la API o acceso a tablas en Supabase.
@@ -129,18 +140,18 @@ Por que es importante:
 
 Entregables:
 - API de datos utilizable por Power BI.
-- Dashboard v1 con datos reales.
+- Dashboard v1 con datos reales y medidas clave.
 - Modelo v1 con metricas publicables.
 
 ---
 
 ## Sprint 2 - Senales tempranas + RAG
-Objetivo: integrar senales tempranas y habilitar el chatbot RAG.
+Objetivo: integrar senales tempranas con pipeline estable y habilitar el chatbot RAG con evaluacion basica.
 
 ### DE (paso a paso)
 1. Pipeline de senales (trends + RSS) con agregacion semanal.
 2. Normalizar senales por region y guardar en data/external/.
-3. Validaciones de cobertura y calidad.
+3. Validaciones de cobertura, duplicados y calidad.
 
 ### DS (paso a paso)
 1. Evaluar impacto de senales en recall.
@@ -180,11 +191,12 @@ Entregables:
 ---
 
 ## Sprint 3 - Estabilizacion y narrativa
-Objetivo: consolidar modelo, data, dashboard y documentacion tecnica.
+Objetivo: consolidar modelo, data, dashboard y documentacion tecnica con estandares de presentacion.
 
 ### DE
 - Versionado de datos y snapshots.
 - Automatizar pipeline con scripts claros.
+- Chequeos de regresion de datos.
 
 ### DS
 - Modelo v2 final y reporte de metricas.
@@ -220,7 +232,7 @@ Entregables:
 ---
 
 ## Sprint 4 - Empaque y entrega
-Objetivo: dejar el proyecto listo para presentacion y despliegue.
+Objetivo: dejar el proyecto listo para presentacion y despliegue con checklist tecnico.
 
 ### DE
 - Scripts de carga automatica y README de datos.
