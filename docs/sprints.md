@@ -86,7 +86,7 @@ Entregables:
 
 Estado actual (Sprint 0):
 - DE: completado (pipeline PySpark, curado v0, validaciones).
-- DS: pendiente.
+- DS: completado (baseline v0 + metricas).
 - Dev 1: pendiente.
 - Dev 2: pendiente.
 
