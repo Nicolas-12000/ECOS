@@ -7,18 +7,30 @@
 > Nota: data/processed esta en .gitignore. Si no existe localmente, corre el pipeline PySpark para generarlo.
 
 ## Cómo generar el curado v0 (si no existe)
-1. Asegura que el contenedor Spark esté activo.
-2. Ejecuta:
+1. Descarga los datasets:
 
 ```
-docker exec spark-master /opt/spark/bin/spark-submit /opt/spark/work/scripts/curate_weekly_v0_spark.py \
+python scripts/download_datasets.py
+```
+
+2. Asegura que Spark este activo:
+
+```
+docker compose -f infra/docker-compose.spark.yml up -d
+```
+
+3. Ejecuta:
+
+```
+docker compose -f infra/docker-compose.spark.yml exec spark-master \
+  /opt/spark/bin/spark-submit /opt/spark/work/scripts/curate_weekly_v0_spark.py \
   --sivigila /opt/spark/work/data/raw/sivigila_4hyg-wa9d.csv \
   --clima /opt/spark/work/data/raw/clima_normales_ideam_nsz2-kzcq.csv \
   --out-parquet /opt/spark/work/data/processed/curated_weekly_v0_parquet \
   --out-csv /opt/spark/work/data/processed/curated_weekly_v0_csv
 ```
 
-3. Copia los outputs a tu workspace si los generaste en el contenedor:
+4. Copia los outputs a tu workspace si los generaste en el contenedor:
 
 ```
 docker cp spark-master:/opt/spark/work/data/processed/curated_weekly_v0_csv data/processed/curated_weekly_v0_csv

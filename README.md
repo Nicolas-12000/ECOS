@@ -39,6 +39,48 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
+## Datos y pipeline (Spark)
+
+### 1) Descargar datasets
+
+```bash
+python scripts/download_datasets.py
+```
+
+Notas:
+- Los archivos descargados quedan en data/raw/.
+
+### 2) Levantar Spark con Docker Compose
+
+```bash
+docker compose -f infra/docker-compose.spark.yml up -d
+```
+
+### 3) Generar el curado v0
+
+```bash
+docker compose -f infra/docker-compose.spark.yml exec spark-master \
+	/opt/spark/bin/spark-submit /opt/spark/work/scripts/curate_weekly_v0_spark.py \
+	--sivigila /opt/spark/work/data/raw/sivigila_4hyg-wa9d.csv \
+	--clima /opt/spark/work/data/raw/clima_normales_ideam_nsz2-kzcq.csv \
+	--out-parquet /opt/spark/work/data/processed/curated_weekly_v0_parquet \
+	--out-csv /opt/spark/work/data/processed/curated_weekly_v0_csv
+```
+
+### 4) (Opcional) Validar el curado
+
+```bash
+docker compose -f infra/docker-compose.spark.yml exec spark-master \
+	/opt/spark/bin/spark-submit /opt/spark/work/scripts/validate_curated_v0_spark.py \
+	--input /opt/spark/work/data/processed/curated_weekly_v0_parquet
+```
+
+Salida esperada:
+- data/processed/curated_weekly_v0_parquet/
+- data/processed/curated_weekly_v0_csv/
+
+Nota: data/processed esta en .gitignore.
+
 ## Configuracion
 
 Copia el archivo de ejemplo y completa variables:

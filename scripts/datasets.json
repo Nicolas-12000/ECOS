@@ -58,14 +58,6 @@
       "output": "data/raw/movilidad_nacional_eh75-8ah6.csv"
     },
     {
-      "key": "movilidad_bogota",
-      "name": "Encuesta de movilidad Bogota",
-      "type": "manual",
-      "url": "https://www.simur.gov.co/encuestas-de-movilidad",
-      "output": "data/raw/movilidad_bogota_simur/",
-      "notes": "Optional. Manual download of matrices and tables from SIMUR."
-    },
-    {
       "key": "movilidad_medellin_terminal",
       "name": "Llegada y salidas de vehiculos terminal Medellin",
       "type": "socrata",
