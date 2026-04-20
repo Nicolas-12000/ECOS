@@ -85,7 +85,7 @@ Entregables:
 - PBIX inicial con datos reales.
 
 Estado actual (Sprint 0):
-- DE: completado (pipeline PySpark, curado v0, validaciones).
+- DE: completado (pipeline PySpark, curado v0, validaciones, snapshot/hash + lineage).
 - DS: completado (baseline v0 + metricas).
 - Dev 1: pendiente.
 - Dev 2: pendiente.

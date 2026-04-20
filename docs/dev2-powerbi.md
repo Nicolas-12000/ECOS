@@ -1,0 +1,44 @@
+# Guía rápida para Dev 2 (Power BI)
+
+## Dónde están los datos
+- Curado v0 (Parquet): data/processed/curated_weekly_v0_parquet/
+- Curado v0 (CSV): data/processed/curated_weekly_v0_csv/
+
+> Nota: data/processed esta en .gitignore. Si no existe localmente, corre el pipeline PySpark para generarlo.
+
+## Cómo generar el curado v0 (si no existe)
+1. Asegura que el contenedor Spark esté activo.
+2. Ejecuta:
+
+```
+docker exec spark-master /opt/spark/bin/spark-submit /opt/spark/work/scripts/curate_weekly_v0_spark.py \
+  --sivigila /opt/spark/work/data/raw/sivigila_4hyg-wa9d.csv \
+  --clima /opt/spark/work/data/raw/clima_normales_ideam_nsz2-kzcq.csv \
+  --out-parquet /opt/spark/work/data/processed/curated_weekly_v0_parquet \
+  --out-csv /opt/spark/work/data/processed/curated_weekly_v0_csv
+```
+
+3. Copia los outputs a tu workspace si los generaste en el contenedor:
+
+```
+docker cp spark-master:/opt/spark/work/data/processed/curated_weekly_v0_csv data/processed/curated_weekly_v0_csv
+```
+
+## Importar en Power BI
+1. Usa el CSV en data/processed/curated_weekly_v0_csv/ (solo hay un part file).
+2. Columnas clave:
+   - epi_year, epi_week
+   - week_start_date, week_end_date
+   - departamento_code, departamento_name
+   - municipio_code, municipio_name
+   - disease, cases_total
+   - temp_avg_c, temp_min_c, temp_max_c, humidity_avg_pct, precipitation_mm
+
+## Layout recomendado
+- Mapa por departamento
+- Serie temporal de casos
+- Filtros por enfermedad, departamento, rango de fechas
+
+## Validación rápida
+- Verifica que epi_week esté entre 1 y 53.
+- Verifica que cases_total no tenga negativos.
