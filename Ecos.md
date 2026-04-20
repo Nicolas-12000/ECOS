@@ -108,13 +108,13 @@ El sistema genera predicciones a corto plazo (1 a 2 semanas) y mediano plazo (3 
 - **Variables clave utilizadas:** fecha de inicio de síntomas, clasificación del caso, semana epidemiológica, municipio de procedencia.
 - **Por qué lo usamos:** Complementa el SIVIGILA histórico con mayor granularidad para uno de los eventos de interés. Permite calibrar el modelo para este evento específico con variables clínicas que no están disponibles en el registro histórico agregado.
 
-#### Dataset 3 — Calidad del Aire en Colombia
+#### Dataset 3 — Normales Climatologicas de Colombia (IDEAM)
 
-- **Enlace:** https://www.datos.gov.co/Ambiente-y-Desarrollo-Sostenible/Calidad-del-Aire/53gx-j5pc
-- **Entidad productora:** IDEAM (Instituto de Hidrología, Meteorología y Estudios Ambientales)
-- **Descripción:** Registros de estaciones de monitoreo de calidad del aire con mediciones de temperatura, humedad relativa, precipitación y material particulado.
-- **Variables clave utilizadas:** temperatura máxima y mínima, humedad relativa, precipitación acumulada, municipio, fecha.
-- **Por qué lo usamos:** Las condiciones climáticas son determinantes en la proliferación del vector *Aedes aegypti*. La temperatura entre 20°C y 30°C y la humedad relativa superior al 60% favorecen la reproducción del mosquito. Incluir estas variables como predictores exógenos mejora significativamente la precisión del modelo Prophet en series temporales de incidencia.
+- **Enlace:** https://www.datos.gov.co/d/nsz2-kzcq
+- **Entidad productora:** IDEAM (Instituto de Hidrologia, Meteorologia y Estudios Ambientales)
+- **Descripcion:** Normales climatologicas 1961-2020 por estacion y municipio, con promedios mensuales y anuales de temperatura, humedad relativa y precipitacion.
+- **Variables clave utilizadas:** temperatura media/max/min, humedad relativa promedio, precipitacion promedio, municipio, departamento.
+- **Por que lo usamos:** Aporta cobertura nacional de variables climaticas como baseline. Se pueden mapear normales mensuales a semanas para enriquecer el modelo; si en el futuro se consigue un dataset meteorologico semanal o diario nacional, se reemplaza por ese.
 
 #### Dataset 4 — Coberturas Administrativas de Vacunación por Departamento
 
@@ -124,21 +124,25 @@ El sistema genera predicciones a corto plazo (1 a 2 semanas) y mediano plazo (3 
 - **Variables clave utilizadas:** departamento, año, tipo de biológico, cobertura porcentual.
 - **Por qué lo usamos:** La cobertura de vacunación es un indicador indirecto de la capacidad del sistema de salud y de la protección inmunológica de la población. Departamentos con coberturas bajas tienen mayor susceptibilidad a brotes. Esta variable actúa como factor de riesgo en el modelo predictivo a nivel departamental.
 
-#### Dataset 5 — Registros de Prestación de Servicios de Salud (RIPS Agregados)
+#### Dataset 5 — Registros de Prestación de Servicios de Salud (RIPS)
 
-- **Enlace:** Portal datos.gov.co / Ministerio de Salud y Protección Social
+- **Enlace:** https://www.datos.gov.co/d/4k9h-8qiu (oficial) y https://www.datos.gov.co/d/5e6c-5p2c (vista agregada)
 - **Entidad productora:** Ministerio de Salud y Protección Social
-- **Descripción:** Registros agregados de consultas, urgencias y hospitalizaciones por municipio, con clasificación por diagnóstico (CIE-10).
+- **Descripción:** Registros de atenciones en salud (consultas, urgencias y hospitalizaciones), con clasificación por diagnóstico (CIE-10); usamos la vista agregada para conteos por municipio y mes.
 - **Variables clave utilizadas:** código de diagnóstico CIE-10 relacionado con arbovirosis y malaria, número de atenciones, municipio, mes.
 - **Por qué lo usamos:** Los RIPS capturan casos que son atendidos en el sistema de salud pero que pueden no haber sido notificados aún a SIVIGILA, funcionando como señal de alerta paralela. La divergencia entre RIPS y SIVIGILA en un municipio puede ser un indicador temprano de subnotificación o de inicio de brote.
 
 #### Dataset 6 — Datos de Movilidad Urbana y Transporte
 
-- **Enlace:** Portal datos.gov.co — datasets de movilidad urbana disponibles por ciudad.
+- **Enlaces (KISS + cobertura nacional):**
+  - Nacional (intermunicipal, flujos entre municipios): https://www.datos.gov.co/d/eh75-8ah6
+  - Medellin (terminal transporte): https://www.datos.gov.co/d/pfsr-mdyi
+  - Opcional: Encuesta de movilidad Bogota (SIMUR) https://www.simur.gov.co/encuestas-de-movilidad
 - **Entidad productora:** Ministerio de Transporte / Entidades territoriales.
-- **Descripción:** Datos de flujo de personas entre municipios y regiones.
-- **Variables clave utilizadas:** origen-destino de viajes, volumen de pasajeros, rutas de transporte intermunicipal.
-- **Por qué lo usamos:** La movilidad poblacional es uno de los principales mecanismos de dispersión geográfica de enfermedades infecciosas. Regiones con alta conectividad de transporte hacia zonas endémicas presentan mayor riesgo de importación de casos. Esta variable mejora los modelos de propagación espacial.
+- **Descripcion:** Flujos de pasajeros intermunicipales (cobertura nacional) y proxy urbano en hubs (terminal Medellin). En Bogota, el dataset CGT disponible es inventario de sensores sin conteos; no se usa hasta encontrar un endpoint con mediciones de aforo.
+- **Variables clave utilizadas:** origen-destino intermunicipal, volumen de pasajeros, conteo vehicular por punto/sensor, fecha/hora, rutas de transporte.
+- **Por que lo usamos:** No es redundante. El dataset nacional mide movilidad entre municipios (difusion regional), mientras que los urbanos capturan dinamica intra-urbana en hubs donde se concentran casos. Medellin se usa como granularidad y validacion para Antioquia; si queremos KISS estricto, se puede dejar solo el nacional (o nacional + Bogota) sin perder cobertura nacional.
+- **Control de sesgos:** El modelo nacional usa solo movilidad intermunicipal. Los datasets urbanos se usan para analisis local y validacion (casos de estudio), no se extrapolan al resto del pais.
 
 ### 5.2 Fuentes externas obtenidas mediante scraping (señales tempranas)
 
@@ -174,6 +178,18 @@ Las fuentes externas se obtienen de forma automatizada mediante un módulo de sc
 - **Herramienta:** `requests` + `pdfplumber` (Python).
 - **Fuente:** https://www.ins.gov.co/buscador-eventos (boletines semanales públicos del INS).
 - **Por qué lo usamos:** Los boletines del INS son publicados cada semana y contienen alertas departamentales, umbrales de alerta y comparativos históricos. Automatizar su lectura permite incorporar esta información al modelo sin procesamiento manual.
+
+### 5.3 API de clima actual (sin costo)
+
+Para datos climáticos actuales (diarios/semanales) usamos una API gratuita y sin llave, que permite construir el historial operativo y actualizar el modelo con condiciones reales de la semana.
+
+#### Fuente D — Open-Meteo (API gratuita)
+
+- **Enlace:** https://open-meteo.com/
+- **Cobertura:** global (incluye Colombia), sin costo y sin autenticación.
+- **Variables usadas:** temperatura media/max/min, humedad relativa, precipitacion.
+- **Flujo:** consulta diaria → agregación semanal → unión por municipio (a partir de coordenadas) → persistencia en data/raw y data/processed.
+- **Por qué lo usamos:** provee clima actual para el modelo sin depender de scraping ni pagos. Se complementa con IDEAM normales para baseline historico.
 
 ---
 
