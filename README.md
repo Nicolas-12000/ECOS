@@ -39,6 +39,15 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
+Nota: cada componente tiene su propio requirements.txt (por ejemplo, backend/ y models/).
+Si prefieres instalar desde la raiz:
+
+```bash
+python -m venv .venv-backend
+source .venv-backend/bin/activate
+pip install -r backend/requirements.txt
+```
+
 ## Datos y pipeline (Spark)
 
 ### 1) Descargar datasets
