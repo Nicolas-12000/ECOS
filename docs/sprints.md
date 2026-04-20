@@ -12,7 +12,7 @@ Entregar una version solida y presentable de ECOS (nivel top), con pipeline robu
 ## Roles
 - Data Engineer (DE): ingesta, limpieza, normalizacion, versionado de datos.
 - Data Scientist (DS): modelado, validacion, metricas, explicabilidad.
-- Dev 1 (Backend): API, servicios, endpoints, integracion con Supabase.
+- Dev 1 (Backend): API, servicios, endpoints, integracion local (PostgreSQL local o archivos).
 - Dev 2 (BI/Frontend): Power BI, modelo de datos, dashboards, refresh.
 
 ## Definicion de terminado (Definition of Done)
@@ -29,6 +29,7 @@ Cada sprint debe cerrar con lo siguiente:
 - Pipeline de datos: PySpark + Parquet como formato principal.
 - Validaciones: esquema, rangos, nulos, duplicados y consistencia temporal.
 - API: Swagger/OpenAPI generado por FastAPI en /docs y /openapi.json.
+- Persistencia: PostgreSQL local para datos operacionales.
 - Documentos clave: docs/architecture.md, docs/data-dictionary.md, docs/api.md.
 - Pruebas: pytest para API y data pipeline, validaciones de datos automatizadas.
 - Power BI: PBIX con data model claro, medidas documentadas y refresh probado.
@@ -116,14 +117,14 @@ Objetivo: consolidar el pipeline con mas fuentes, exponer datos reales y prepara
 Objetivo: conectar el dashboard a datos reales y publicar version v1 con medidas clave.
 
 Necesitas:
-- URL de la API o acceso a tablas en Supabase.
+- URL local de la API (http://localhost:8000) o acceso a PostgreSQL local/archivos.
 - Documentacion de endpoints o data dictionary.
 - Credenciales si aplica (token o key).
 
 Pasos:
 1. Conectar Power BI a la fuente real:
-	- Si es API: usar conector Web y pegar la URL.
-	- Si es Supabase: usar conector PostgreSQL con credenciales.
+	- Si es API: usar conector Web y pegar la URL local.
+	- Si es local: usar CSV/Parquet o conector a Postgres local.
 2. Actualizar el modelo para usar datos reales.
 3. Revisar tipos de datos y limpiar columnas que no se usan.
 4. Crear medidas basicas (sum de casos, promedio por semana).
@@ -232,7 +233,7 @@ Entregables:
 ---
 
 ## Sprint 4 - Empaque y entrega
-Objetivo: dejar el proyecto listo para presentacion y despliegue con checklist tecnico.
+Objetivo: dejar el proyecto listo para presentacion y demo local con checklist tecnico.
 
 ### DE
 - Scripts de carga automatica y README de datos.
@@ -241,7 +242,7 @@ Objetivo: dejar el proyecto listo para presentacion y despliegue con checklist t
 - Informe tecnico corto para concurso.
 
 ### Dev 1
-- Docker y guia de despliegue.
+- Docker y guia de demo local.
 - Checklist de configuracion y variables de entorno.
 
 ### Dev 2
@@ -249,11 +250,11 @@ Objetivo: publicar el dashboard y dejar material listo para entrega.
 
 Necesitas:
 - PBIX final.
-- Acceso a Power BI Service (si se publica en la nube).
+- Dataset local listo para la demo.
 
 Pasos:
-1. Publicar el PBIX en Power BI Service o preparar link local.
-2. Configurar refresh si la publicacion es online.
+1. Preparar el PBIX local y, si aplica, exportar PDF o capturas.
+2. Actualizar el dataset local antes de la demo.
 3. Tomar capturas clave (mapa, series, senales).
 4. Guardar capturas en docs/.
 5. Validar la demo completa con el equipo.

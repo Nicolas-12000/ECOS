@@ -222,7 +222,7 @@ ECOS está compuesto por tres capas principales que se comunican entre sí a tra
 │           CAPA DE DATOS                     │
 │  PySpark — procesamiento de datasets        │
 │  6 fuentes datos.gov.co + scraped signals   │
-│  PostgreSQL / Parquet para persistencia     │
+│  PostgreSQL local / Parquet para persistencia│
 └─────────────────────────────────────────────┘
 ```
 
@@ -239,9 +239,9 @@ ECOS está compuesto por tres capas principales que se comunican entre sí a tra
 | Dashboard | Plotly Dash | 100% Python, código abierto, embebible, permite mapas interactivos, filtros y gráficos de series temporales sin dependencias externas de licencia. |
 | Frontend (opcional) | Next.js 15 + Tailwind | Para versión web completa con autenticación y notificaciones. |
 | Scraping | pytrends + feedparser + pdfplumber | Herramientas especializadas, ligeras y sin dependencias pesadas. |
-| Infraestructura | Docker + Docker Compose | Garantiza reproducibilidad y despliegue en cualquier servidor o nube. |
+| Infraestructura | Docker + Docker Compose | Garantiza reproducibilidad local y demo sin servicios pagos. |
 | CI/CD | GitHub Actions | Automatización de pruebas y despliegue en menos de 3 minutos. |
-| Persistencia | PostgreSQL + archivos Parquet | PostgreSQL para datos operacionales; Parquet para almacenamiento eficiente de series históricas grandes. |
+| Persistencia | PostgreSQL local + archivos Parquet | PostgreSQL para datos operacionales; Parquet para almacenamiento eficiente de series históricas grandes. |
 
 ### 6.3 Flujo de datos
 
@@ -353,7 +353,7 @@ Métricas principales:
 
 ### 8.6 Fase 6 — Despliegue
 
-Despliegue con Docker Compose en un servidor de bajo costo (Railway o Render en fase de concurso; servidor del INS o MinSalud en fase de escalamiento). Documentación completa de arquitectura, APIs y manual de usuario para secretarías de salud.
+Demo local con Docker Compose, PostgreSQL local y ejecucion en laptop. No requiere nube para la hackaton. Documentacion completa de arquitectura, APIs y manual de usuario para secretarias de salud.
 
 ---
 
@@ -435,7 +435,7 @@ Despliegue con Docker Compose en un servidor de bajo costo (Railway o Render en 
 - **Repositorio GitHub:** [URL a completar al momento de creación]
 - **Registro en datos.gov.co:** https://herramientas.datos.gov.co/usos
 - **Licencia:** MIT (código abierto, reutilizable por entidades públicas sin restricciones).
-- **Demo en línea:** Desplegado en Railway (enlace disponible en el repositorio).
+- **Demo local:** Ejecucion en laptop con servicios en localhost.
 - **Documentación:** README completo en español con instrucciones de instalación, uso y descripción de cada módulo.
 
 ---

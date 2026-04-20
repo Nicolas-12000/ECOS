@@ -12,12 +12,13 @@ Plataforma nacional de alerta temprana para enfermedades de alto impacto en Colo
 - docs/: notas y decisiones
 - notebooks/: exploracion
 - scripts/: utilidades
-- infra/: despliegue
+- infra/: infraestructura local (Spark, Docker)
 
 ## Requisitos
 
 - Node.js 20+
 - Python 3.11+
+- PostgreSQL 14+ (local)
 
 ## Inicio rapido
 
@@ -47,6 +48,14 @@ python -m venv .venv-backend
 source .venv-backend/bin/activate
 pip install -r backend/requirements.txt
 ```
+
+## Demo local (hackaton)
+
+- Todo corre en local; no requiere servicios pagos.
+- Backend: http://localhost:8000
+- Frontend: http://localhost:3000
+- Base de datos: PostgreSQL local (localhost:5432)
+- Dashboard BI: PBIX local usando data/processed.
 
 ## Datos y pipeline (Spark)
 
@@ -92,16 +101,14 @@ Nota: data/processed esta en .gitignore.
 
 ## Configuracion
 
-Copia el archivo de ejemplo y completa variables:
+Para la demo local no se requieren servicios externos. Si usas base de datos local, configura `DATABASE_URL`:
 
 ```bash
 cd backend
 cp .env.example .env
 ```
 
-Variables principales:
-- SUPABASE_URL
-- SUPABASE_ANON_KEY
+Variables opcionales: ver backend/.env.example
 
 ## Licencia
 

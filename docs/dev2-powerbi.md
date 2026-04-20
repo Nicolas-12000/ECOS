@@ -38,7 +38,8 @@ docker cp spark-master:/opt/spark/work/data/processed/curated_weekly_v0_csv data
 
 ## Importar en Power BI
 1. Usa el CSV en data/processed/curated_weekly_v0_csv/ (solo hay un part file).
-2. Columnas clave:
+2. Si se usa PostgreSQL local, conecta con el conector PostgreSQL y apunta al esquema/dataset curado.
+3. Columnas clave:
    - epi_year, epi_week
    - week_start_date, week_end_date
    - departamento_code, departamento_name
