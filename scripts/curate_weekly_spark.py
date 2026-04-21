@@ -140,13 +140,19 @@ def resolve_features(version: str, raw_features: str | None) -> set[str]:
     return tokens & FEATURES_ALL
 
 
-def read_csv_if_exists(spark: SparkSession, path: str):
+def read_csv_if_exists(spark: SparkSession, path: str, encoding: str = "utf-8"):
     if not path:
         return None
     if not Path(path).exists():
         print(f"[skip] missing file: {path}")
         return None
-    return spark.read.option("header", True).option("inferSchema", False).csv(path)
+    return (
+        spark.read
+        .option("header", True)
+        .option("inferSchema", False)
+        .option("encoding", encoding)
+        .csv(path)
+    )
 
 
 def resolve_col(columns: list[str], candidates: list[str]) -> str | None:
@@ -377,7 +383,8 @@ def load_clima(spark: SparkSession, path: str, periodo: str):
 
 
 def load_vacunacion(spark: SparkSession, path: str, use_dane: bool):
-    base = read_csv_if_exists(spark, path)
+    # Raw file from datos.gov.co comes in Latin-1
+    base = read_csv_if_exists(spark, path, encoding="latin1")
     if base is None:
         return None
 
@@ -441,7 +448,8 @@ def load_vacunacion(spark: SparkSession, path: str, use_dane: bool):
 
 
 def load_rips(spark: SparkSession, path: str):
-    base = read_csv_if_exists(spark, path)
+    # Raw file from datos.gov.co comes in Latin-1
+    base = read_csv_if_exists(spark, path, encoding="latin1")
     if base is None:
         return None
 
@@ -461,37 +469,41 @@ def load_rips(spark: SparkSession, path: str):
         print("[skip] rips: missing required columns")
         return None
 
-    diag_norm = F.upper(F.trim(F.col(diag_col)))
+    # RIPS raw format: "05541 - Peñol" — extract leading digits as DANE codes
+    dane_from_label = lambda col_name, size: F.lpad(
+        F.regexp_extract(F.col(col_name), r"^\s*(\d+)", 1), size, "0"
+    )
+
+    # CIE10 code is prefixed before " - " description
+    diag_code = F.upper(F.regexp_extract(F.trim(F.col(diag_col)), r"^([A-Z]\d+)", 1))
     disease = (
-        F.when(diag_norm.startswith("A90"), F.lit("dengue"))
-        .when(diag_norm.startswith("A91"), F.lit("dengue"))
-        .when(diag_norm.startswith("A920"), F.lit("chikungunya"))
-        .when(diag_norm.startswith("A925"), F.lit("zika"))
-        .when(diag_norm.startswith("B50"), F.lit("malaria"))
-        .when(diag_norm.startswith("B51"), F.lit("malaria"))
-        .when(diag_norm.startswith("B52"), F.lit("malaria"))
-        .when(diag_norm.startswith("B53"), F.lit("malaria"))
-        .when(diag_norm.startswith("B54"), F.lit("malaria"))
+        F.when(diag_code.startswith("A90"), F.lit("dengue"))
+        .when(diag_code.startswith("A91"), F.lit("dengue"))
+        .when(diag_code.startswith("A920"), F.lit("chikungunya"))
+        .when(diag_code.startswith("A925"), F.lit("zika"))
+        .when(diag_code.startswith("B50"), F.lit("malaria"))
+        .when(diag_code.startswith("B51"), F.lit("malaria"))
+        .when(diag_code.startswith("B52"), F.lit("malaria"))
+        .when(diag_code.startswith("B53"), F.lit("malaria"))
+        .when(diag_code.startswith("B54"), F.lit("malaria"))
     )
 
     rips = (
-        base.withColumn("departamento_norm", spark_normalize_text(F.col(dept_col)))
-        .withColumn("municipio_norm", spark_normalize_text(F.col(muni_col)))
+        base.withColumn("departamento_code", dane_from_label(dept_col, 2))
+        .withColumn("municipio_code", dane_from_label(muni_col, 5))
         .withColumn("epi_year", F.col(year_col).cast("int"))
         .withColumn("visits", F.col(count_col).cast("int"))
         .withColumn("disease", disease)
         .filter(F.col("disease").isNotNull())
-        .select(
-            "departamento_norm",
-            "municipio_norm",
-            "epi_year",
-            "disease",
-            "visits",
+        .filter(
+            F.col("departamento_code").isNotNull()
+            & (F.length(F.col("departamento_code")) == 2)
         )
+        .select("departamento_code", "municipio_code", "epi_year", "disease", "visits")
     )
 
     return (
-        rips.groupBy("departamento_norm", "municipio_norm", "epi_year", "disease")
+        rips.groupBy("departamento_code", "municipio_code", "epi_year", "disease")
         .agg(F.sum(F.coalesce("visits", F.lit(0))).alias("rips_visits_total"))
         .filter(F.col("epi_year").isNotNull())
     )
@@ -598,9 +610,10 @@ def enrich_and_write(
         )
 
     if "rips" in features and rips is not None:
+        # RIPS uses DANE codes extracted from "05541 - Peñol" format
         joined = joined.join(
             rips,
-            on=["departamento_norm", "municipio_norm", "epi_year", "disease"],
+            on=["departamento_code", "municipio_code", "epi_year", "disease"],
             how="left",
         )
 

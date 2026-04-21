@@ -26,6 +26,34 @@ CLIMATE_COLS = [
 ]
 
 
+def build_features(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series]:
+    df = df.copy()
+    df["week_start_date"] = pd.to_datetime(df["week_start_date"], errors="coerce")
+    df = df.dropna(subset=["week_start_date", "epi_year", "epi_week", "cases_total"])
+    for col in CLIMATE_COLS:
+        if col not in df.columns:
+            df[col] = np.nan
+    df = add_lags(df)
+    feature_cols = ["epi_year", "epi_week", "cases_lag_1", "cases_lag_2", "cases_lag_4"] + CLIMATE_COLS
+    X = df[feature_cols].copy()
+    for col in CLIMATE_COLS:
+        X[col] = X[col].fillna(X[col].median() if not X[col].isna().all() else 0.0)
+    X = pd.concat([
+        X,
+        pd.get_dummies(df["disease"], prefix="disease", dummy_na=False),
+        pd.get_dummies(df["departamento_code"], prefix="dept", dummy_na=False),
+    ], axis=1)
+    return X, df["cases_total"].astype(float)
+
+
+def train_model(X_train: pd.DataFrame, y_train: pd.Series) -> XGBRegressor:
+    model = XGBRegressor(
+        n_estimators=300, max_depth=6, learning_rate=0.05,
+        subsample=0.8, colsample_bytree=0.8, objective="reg:squarederror",
+        n_jobs=4, random_state=42,
+    )
+    model.fit(X_train, y_train)
+    return model
 
 
 
