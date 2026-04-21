@@ -8,7 +8,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_INPUT = REPO_ROOT / "data/processed/curated_weekly_v0_parquet"
+DEFAULT_INPUT_TMPL = "data/processed/curated_weekly_{version}_parquet"
 
 REQUIRED_COLUMNS = [
     "epi_year",
@@ -43,16 +43,25 @@ def build_spark(app_name: str) -> SparkSession:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Validate curated weekly dataset v0")
-    parser.add_argument("--input", default=str(DEFAULT_INPUT))
+    parser = argparse.ArgumentParser(description="Validate curated weekly dataset")
+    parser.add_argument("--version", default="v0", choices=["v0", "v1"])
+    parser.add_argument("--input", default="")
     args = parser.parse_args()
 
-    input_path = args.input
+    input_path = args.input or str(REPO_ROOT / DEFAULT_INPUT_TMPL.format(version=args.version))
 
-    spark = build_spark("validate_curated_v0")
+    spark = build_spark(f"validate_curated_{args.version}")
     df = spark.read.parquet(input_path)
 
-    missing = [col for col in REQUIRED_COLUMNS if col not in df.columns]
+    expected_cols = REQUIRED_COLUMNS.copy()
+    if args.version == "v1":
+        expected_cols.extend([
+            "vaccination_coverage_pct", 
+            "rips_visits_total", 
+            "mobility_index"
+        ])
+
+    missing = [col for col in expected_cols if col not in df.columns]
     if missing:
         print(f"[error] missing columns: {missing}")
         spark.stop()

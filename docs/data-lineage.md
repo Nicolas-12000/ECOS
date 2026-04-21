@@ -8,7 +8,7 @@ Dejar trazabilidad clara de como se construye el dataset curado v0 desde las fue
 - IDEAM normales climatologicas: data/raw/clima_normales_ideam_nsz2-kzcq.csv
 
 ## Transformaciones principales
-1. Ingesta con PySpark (scripts/curate_weekly_v0_spark.py).
+1. Ingesta con PySpark (scripts/curate_weekly_spark.py --version v0).
 2. Limpieza: trim de llaves, filtros de semana/anio validos.
 3. Agregacion semanal por municipio y enfermedad.
 4. Enriquecimiento con clima IDEAM por municipio y mes.
