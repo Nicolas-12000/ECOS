@@ -13,7 +13,7 @@ Respuesta:
 {"status":"ok"}
 ```
 
-Si DATABASE_URL esta configurada, tambien retorna el estado de la base:
+Si DATABASE_URL o las variables DB_* estan configuradas, tambien retorna el estado de la base:
 
 ```json
 {"status":"ok","database":"ok"}
