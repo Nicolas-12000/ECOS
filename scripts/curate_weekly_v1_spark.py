@@ -2,6 +2,7 @@
 
 import argparse
 import datetime as dt
+import re
 import unicodedata
 from pathlib import Path
 
@@ -59,6 +60,17 @@ def normalize_text(value: str | None) -> str:
     return value
 
 
+def normalize_dane_code(value: str | None, size: int) -> str | None:
+    if value is None:
+        return None
+    digits = re.sub(r"\D", "", str(value))
+    if not digits:
+        return None
+    if len(digits) > size:
+        digits = digits[-size:]
+    return digits.zfill(size)
+
+
 def normalize_column_name(value: str) -> str:
     normalized = normalize_text(value)
     cleaned = []
@@ -76,6 +88,16 @@ def normalize_column_name(value: str) -> str:
 @F.udf(T.StringType())
 def normalize_udf(value: str | None) -> str:
     return normalize_text(value)
+
+
+@F.udf(T.StringType())
+def normalize_dane_depto(value: str | None) -> str | None:
+    return normalize_dane_code(value, 2)
+
+
+@F.udf(T.StringType())
+def normalize_dane_muni(value: str | None) -> str | None:
+    return normalize_dane_code(value, 5)
 
 
 @F.udf(T.DateType())
@@ -148,17 +170,25 @@ def load_sivigila(spark: SparkSession, path: str):
         .withColumn("cases", F.col("conteo").cast("int"))
         .withColumn("disease", disease)
         .filter(F.col("disease").isNotNull())
-        .withColumn("departamento_code", F.trim(F.col("COD_DPTO_O")))
+        .withColumn(
+            "departamento_code",
+            normalize_dane_depto(F.trim(F.col("COD_DPTO_O"))),
+        )
         .withColumn("departamento_name", F.trim(F.col("Departamento_ocurrencia")))
-        .withColumn("municipio_code", F.trim(F.col("COD_MUN_O")))
+        .withColumn(
+            "municipio_code",
+            normalize_dane_muni(F.trim(F.col("COD_MUN_O"))),
+        )
         .withColumn("municipio_name", F.trim(F.col("Municipio_ocurrencia")))
     )
 
     base = base.filter(
         (F.col("epi_year").between(1900, 2100))
         & (F.col("epi_week").between(1, 53))
+        & (F.col("departamento_code").isNotNull())
+        & (F.length(F.col("departamento_code")) == 2)
         & (F.col("municipio_code").isNotNull())
-        & (F.length(F.col("municipio_code")) > 0)
+        & (F.length(F.col("municipio_code")) == 5)
     )
 
     agg = (
@@ -277,13 +307,14 @@ def load_vacunacion(spark: SparkSession, path: str):
         return None
 
     vacunacion = (
-        base.withColumn("departamento_code", F.col(code_col))
+        base.withColumn("departamento_code", normalize_dane_depto(F.col(code_col)))
         .withColumn("departamento_name", F.col(name_col) if name_col else F.lit(None))
         .withColumn("vaccination_year", F.col(year_col).cast("int"))
         .withColumn(
             "vaccination_coverage_pct",
             F.regexp_replace(F.col(coverage_col), ",", ".").cast("double"),
         )
+        .filter(F.col("departamento_code").isNotNull())
         .select(
             "departamento_code",
             "departamento_name",
