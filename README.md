@@ -81,7 +81,7 @@ docker compose -f infra/docker-compose.spark.yml exec spark-master \
 	/opt/spark/bin/spark-submit /opt/spark/work/scripts/curate_weekly_spark.py \
 	--version v0 \
 	--sivigila /opt/spark/work/data/raw/sivigila_4hyg-wa9d.csv \
-	--clima /opt/spark/work/data/raw/clima_normales_ideam_nsz2-kzcq.csv \
+	--climate /opt/spark/work/data/raw/clima_normales_ideam_nsz2-kzcq.csv \
 	--out-parquet /opt/spark/work/data/processed/curated_weekly_v0_parquet \
 	--out-csv /opt/spark/work/data/processed/curated_weekly_v0_csv
 ```
