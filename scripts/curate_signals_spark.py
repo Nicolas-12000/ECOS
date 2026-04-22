@@ -48,34 +48,36 @@ def main() -> int:
         print("[error] No signals data found. Run fetch_signals.py first.")
         return 1
 
-    # Preparar df_trends
+    # Preparar df_trends (SIN geolocalización aún - Google Trends nacional)
     if trends is not None:
         df_trends = (
             trends.withColumn("week_start_date", F.to_date("week_start_date"))
             .withColumn("trends_score", F.col("trends_score").cast("double"))
-            .select("week_start_date", "disease", "trends_score")
+            .withColumn("departamento", F.coalesce(F.col("departamento"), F.lit("NACIONAL")))
+            .select("week_start_date", "disease", "departamento", "trends_score")
         )
     else:
         print("[warn] Trends is missing, creating empty df.")
-        schema = "week_start_date DATE, disease STRING, trends_score DOUBLE"
+        schema = "week_start_date DATE, disease STRING, departamento STRING, trends_score DOUBLE"
         df_trends = spark.createDataFrame([], schema)
 
-    # Preparar df_rss
+    # Preparar df_rss (CON geolocalización)
     if rss is not None:
         df_rss = (
             rss.withColumn("week_start_date", F.to_date("week_start_date"))
             .withColumn("rss_mentions", F.col("rss_mentions").cast("double"))
-            .select("week_start_date", "disease", "rss_mentions")
+            .withColumn("departamento", F.col("departamento"))
+            .select("week_start_date", "disease", "departamento", "rss_mentions")
         )
     else:
         print("[warn] RSS is missing, creating empty df.")
-        schema = "week_start_date DATE, disease STRING, rss_mentions DOUBLE"
+        schema = "week_start_date DATE, disease STRING, departamento STRING, rss_mentions DOUBLE"
         df_rss = spark.createDataFrame([], schema)
 
-    # Join Full Outer por semana y enfermedad
+    # Join Full Outer por semana, enfermedad y departamento
     signals = df_trends.join(
         df_rss,
-        on=["week_start_date", "disease"],
+        on=["week_start_date", "disease", "departamento"],
         how="full"
     )
 
@@ -87,13 +89,23 @@ def main() -> int:
             F.date_format(F.col("week_start_date"), "xxxx").cast("int")
         )
         .withColumn("epi_week", F.weekofyear(F.col("week_start_date")))
+        .withColumn("departamento", F.coalesce(F.col("departamento"), F.lit("NACIONAL")))
         .withColumn("trends_score", F.coalesce("trends_score", F.lit(0.0)))
         .withColumn("rss_mentions", F.coalesce("rss_mentions", F.lit(0.0)))
     )
 
-    # Agrupar a una sola fila por semana/enfermedad en caso de duplicados
+    # Validación: datos temporales consistentes
+    signals_validated = (
+        signals
+        .filter(F.col("epi_year").between(2013, 2024))
+        .filter(F.col("epi_week").between(1, 53))
+        .filter((F.col("trends_score") >= 0) & (F.col("trends_score") <= 100))
+        .filter(F.col("rss_mentions") >= 0)
+    )
+
+    # Agrupar a una sola fila por semana/enfermedad/departamento en caso de duplicados
     agg = (
-        signals.groupBy("epi_year", "epi_week", "disease")
+        signals_validated.groupBy("epi_year", "epi_week", "disease", "departamento")
         .agg(
             F.max("trends_score").alias("trends_score"),
             F.sum("rss_mentions").alias("rss_mentions_sum")
