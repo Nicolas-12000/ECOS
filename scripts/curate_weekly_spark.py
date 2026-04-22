@@ -13,12 +13,12 @@ from pyspark.sql import types as T
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_VERSION = "v1"
 DEFAULT_SIVIGILA = REPO_ROOT / "data/raw/sivigila_4hyg-wa9d.csv"
-DEFAULT_CLIMA = REPO_ROOT / "data/raw/clima_normales_ideam_nsz2-kzcq.csv"
-DEFAULT_VACUNACION = REPO_ROOT / "data/raw/vacunacion_6i25-2hdt.csv"
+DEFAULT_CLIMATE = REPO_ROOT / "data/raw/clima_normales_ideam_nsz2-kzcq.csv"
+DEFAULT_VACCINATION = REPO_ROOT / "data/raw/vacunacion_6i25-2hdt.csv"
 DEFAULT_RIPS = REPO_ROOT / "data/raw/rips_5e6c-5p2c.csv"
-DEFAULT_MOVILIDAD = REPO_ROOT / "data/raw/movilidad_nacional_eh75-8ah6.csv"
+DEFAULT_MOBILITY = REPO_ROOT / "data/raw/movilidad_nacional_eh75-8ah6.csv"
 
-FEATURES_ALL = {"vacunacion", "rips", "movilidad"}
+FEATURES_ALL = {"vaccination", "rips", "mobility"}
 
 MONTHS = [
     ("ene", 1),
@@ -140,13 +140,13 @@ def resolve_features(version: str, raw_features: str | None) -> set[str]:
     return tokens & FEATURES_ALL
 
 
-def read_csv_if_exists(spark: SparkSession, path: str):
+def read_csv_if_exists(spark: SparkSession, path: str, encoding: str = "utf-8"):
     if not path:
         return None
     if not Path(path).exists():
         print(f"[skip] missing file: {path}")
         return None
-    return spark.read.option("header", True).option("inferSchema", False).csv(path)
+    return spark.read.option("header", True).option("inferSchema", False).option("encoding", encoding).csv(path)
 
 
 def resolve_col(columns: list[str], candidates: list[str]) -> str | None:
@@ -317,7 +317,7 @@ def load_sivigila(spark: SparkSession, path: str, use_dane: bool):
     return agg
 
 
-def load_clima(spark: SparkSession, path: str, periodo: str):
+def load_climate(spark: SparkSession, path: str, period: str):
     base = spark.read.option("header", True).option("inferSchema", False).csv(path)
     for col_name in base.columns:
         base = base.withColumnRenamed(col_name, normalize_column_name(col_name))
@@ -329,8 +329,8 @@ def load_clima(spark: SparkSession, path: str, periodo: str):
         .withColumn("municipio_norm", spark_normalize_text(F.col("municipio")))
     )
 
-    periodo_norm = normalize_text(periodo)
-    base = base.filter(F.col("periodo_norm") == F.lit(periodo_norm))
+    period_norm = normalize_text(period)
+    base = base.filter(F.col("periodo_norm") == F.lit(period_norm))
 
     param_items = []
     for key, value in PARAM_MAP.items():
@@ -376,8 +376,9 @@ def load_clima(spark: SparkSession, path: str, periodo: str):
     return climate
 
 
-def load_vacunacion(spark: SparkSession, path: str, use_dane: bool):
-    base = read_csv_if_exists(spark, path)
+def load_vaccination(spark: SparkSession, path: str, use_dane: bool):
+    # Raw file from datos.gov.co comes in Latin-1
+    base = read_csv_if_exists(spark, path, encoding="latin1")
     if base is None:
         return None
 
@@ -441,7 +442,8 @@ def load_vacunacion(spark: SparkSession, path: str, use_dane: bool):
 
 
 def load_rips(spark: SparkSession, path: str):
-    base = read_csv_if_exists(spark, path)
+    # Raw file from datos.gov.co comes in Latin-1
+    base = read_csv_if_exists(spark, path, encoding="latin1")
     if base is None:
         return None
 
@@ -497,7 +499,7 @@ def load_rips(spark: SparkSession, path: str):
     )
 
 
-def load_movilidad(spark: SparkSession, path: str):
+def load_mobility(spark: SparkSession, path: str):
     base = read_csv_if_exists(spark, path)
     if base is None:
         return None
@@ -577,22 +579,22 @@ def load_movilidad(spark: SparkSession, path: str):
 
 def enrich_and_write(
     sivigila,
-    clima,
-    vacunacion,
+    climate,
+    vaccination,
     rips,
-    movilidad,
+    mobility,
     version: str,
     features: set[str],
     out_parquet: str,
     out_csv: str,
 ):
     joined = sivigila.join(
-        clima, on=["departamento_norm", "municipio_norm", "month_num"], how="left"
+        climate, on=["departamento_norm", "municipio_norm", "month_num"], how="left"
     )
 
-    if "movilidad" in features and movilidad is not None:
+    if "mobility" in features and mobility is not None:
         joined = joined.join(
-            movilidad,
+            mobility,
             on=["epi_year", "epi_week", "municipio_norm"],
             how="left",
         )
@@ -600,13 +602,13 @@ def enrich_and_write(
     if "rips" in features and rips is not None:
         joined = joined.join(
             rips,
-            on=["departamento_norm", "municipio_norm", "epi_year", "disease"],
+            on=["departamento_code", "municipio_code", "epi_year", "disease"],
             how="left",
         )
 
-    if "vacunacion" in features and vacunacion is not None:
+    if "vaccination" in features and vaccination is not None:
         joined = joined.join(
-            vacunacion,
+            vaccination,
             on=["departamento_code", "epi_year"],
             how="left",
         )
@@ -702,16 +704,16 @@ def main() -> int:
     parser.add_argument(
         "--features",
         default="",
-        help="Comma list: vacunacion,rips,movilidad | all | none",
+        help="Comma-separated list: vaccination,rips,mobility | all | none",
     )
     parser.add_argument("--sivigila", default=str(DEFAULT_SIVIGILA))
-    parser.add_argument("--clima", default=str(DEFAULT_CLIMA))
-    parser.add_argument("--vacunacion", default=str(DEFAULT_VACUNACION))
+    parser.add_argument("--climate", default=str(DEFAULT_CLIMATE))
+    parser.add_argument("--vaccination", default=str(DEFAULT_VACCINATION))
     parser.add_argument("--rips", default=str(DEFAULT_RIPS))
-    parser.add_argument("--movilidad", default=str(DEFAULT_MOVILIDAD))
+    parser.add_argument("--mobility", default=str(DEFAULT_MOBILITY))
     parser.add_argument("--out-parquet")
     parser.add_argument("--out-csv")
-    parser.add_argument("--periodo", default="1991-2020")
+    parser.add_argument("--period", default="1991-2020")
     args = parser.parse_args()
 
     version = args.version.lower()
@@ -724,30 +726,30 @@ def main() -> int:
     spark = build_spark(f"curated_weekly_{version}")
 
     sivigila = load_sivigila(spark, args.sivigila, use_dane)
-    clima = load_clima(spark, args.clima, args.periodo)
+    climate = load_climate(spark, args.climate, args.period)
 
-    vacunacion = None
+    vaccination = None
     rips = None
-    movilidad = None
-    if "vacunacion" in features:
-        vacunacion = load_vacunacion(spark, args.vacunacion, use_dane)
-        if vacunacion is None:
-            print("[warn] vacunacion feature disabled (missing columns or file)")
+    mobility = None
+    if "vaccination" in features:
+        vaccination = load_vaccination(spark, args.vaccination, use_dane)
+        if vaccination is None:
+            print("[warn] vaccination feature disabled (missing columns or file)")
     if "rips" in features:
         rips = load_rips(spark, args.rips)
         if rips is None:
             print("[warn] rips feature disabled (missing columns or file)")
-    if "movilidad" in features:
-        movilidad = load_movilidad(spark, args.movilidad)
-        if movilidad is None:
-            print("[warn] movilidad feature disabled (missing columns or file)")
+    if "mobility" in features:
+        mobility = load_mobility(spark, args.mobility)
+        if mobility is None:
+            print("[warn] mobility feature disabled (missing columns or file)")
 
     enrich_and_write(
         sivigila,
-        clima,
-        vacunacion,
+        climate,
+        vaccination,
         rips,
-        movilidad,
+        mobility,
         version,
         features,
         out_parquet,
