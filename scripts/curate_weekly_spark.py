@@ -88,12 +88,23 @@ def normalize_column_name(value: str) -> str:
 
 def spark_normalize_text(col):
     """Native PySpark string normalization (no Python UDF)"""
-    accents = "ÁÉÍÓÚáéíóúÀÈÌÒÙàèìòùÄËÏÖÜäëïöüÂÊÎÔÛâêîôû"
-    replacements = "AEIOUaeiouAEIOUaeiouAEIOUaeiouAEIOUaeiou"
+    # Lista extendida de acentos y caracteres especiales comunes en datasets de Colombia
+    accents = "ÁÉÍÓÚáéíóúÀÈÌÒÙàèìòùÄËÏÖÜäëïöüÂÊÎÔÛâêôûÑñ"
+    replacements = "AEIOUaeiouAEIOUaeiouAEIOUaeiouAEIOUaeiouNn"
     c = F.translate(col, accents, replacements)
     c = F.regexp_replace(c, r"\.", " ")
+    # Eliminar cualquier carácter que no sea A-Z, 0-9 o espacio (esto limpia  y otros fallos de encoding)
+    c = F.regexp_replace(c, r"[^a-zA-Z0-9\s]", "")
     c = F.trim(F.regexp_replace(c, r"\s+", " "))
-    return F.upper(c)
+    c = F.upper(c)
+    
+    # Manejar variaciones específicas de nombres de departamentos
+    c = F.when(c.contains("VALLE"), F.lit("VALLE DEL CAUCA")) \
+         .when(c.isin("BOGOTA DC", "BOGOTA D C", "SANTAFE DE BOGOTA"), F.lit("BOGOTA")) \
+         .when(c.contains("SAN ANDRES"), F.lit("ARCHIPIELAGO DE SAN ANDRES PROVIDENCIA Y SANTA CATALINA")) \
+         .when(c == "NORTE SANTANDER", F.lit("NORTE DE SANTANDER")) \
+         .otherwise(c)
+    return c
 
 
 def spark_iso_week_start(year_col_name, week_col_name):
@@ -104,7 +115,7 @@ def spark_iso_week_start(year_col_name, week_col_name):
         F.lpad(F.col(week_col_name).cast("string"), 2, "0"),
         F.lit("-1")
     )
-    return F.to_date(iso_str, "xxxx-'W'ww-u")
+    return F.to_date(iso_str, "yyyy-'W'ww-u")
 
 
 def spark_iso_week_end(year_col_name, week_col_name):
@@ -373,13 +384,19 @@ def load_climate(spark: SparkSession, path: str, period: str):
         .agg(F.avg("value").alias("avg_value"))
     )
 
-    climate = (
+    climate_muni = (
         avg_values.groupBy("departamento_norm", "municipio_norm", "month_num")
         .pivot("param_key", list(PARAM_MAP.values()))
         .agg(F.first("avg_value"))
     )
 
-    return climate
+    climate_dept = (
+        avg_values.groupBy("departamento_norm", "month_num")
+        .pivot("param_key", list(PARAM_MAP.values()))
+        .agg(F.avg("avg_value"))
+    )
+
+    return climate_muni, climate_dept
 
 
 def load_vaccination(spark: SparkSession, path: str, use_dane: bool):
@@ -598,9 +615,38 @@ def enrich_and_write(
     out_parquet: str,
     out_csv: str,
 ):
+    climate_muni, climate_dept = climate
+    
+    # 1. Join por municipio (primera opción)
     joined = sivigila.join(
-        climate, on=["departamento_norm", "municipio_norm", "month_num"], how="left"
+        climate_muni, 
+        on=["departamento_norm", "municipio_norm", "month_num"], 
+        how="left"
     )
+
+    # 2. Fallback por departamento (donde municipio es null)
+    climate_cols = list(PARAM_MAP.values())
+    
+    # Renombrar columnas del fallback para evitar colisión
+    for col in climate_cols:
+        climate_dept = climate_dept.withColumnRenamed(col, f"{col}_dept")
+    
+    # Crear un dataframe con los promedios del departamento para las filas que no cruzaron
+    joined_fallback = joined.join(
+        climate_dept,
+        on=["departamento_norm", "month_num"],
+        how="left"
+    )
+
+    # Lógica de Coalesce: si el valor del municipio es null, usar el del departamento
+    for col in climate_cols:
+        dept_col = f"{col}_dept"
+        joined_fallback = joined_fallback.withColumn(
+            col,
+            F.coalesce(F.col(col), F.col(dept_col))
+        ).drop(dept_col)
+
+    joined = joined_fallback
 
     if "mobility" in features and mobility is not None:
         joined = joined.join(
