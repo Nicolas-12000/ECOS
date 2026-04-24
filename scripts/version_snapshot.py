@@ -8,11 +8,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_DATASET = "curated_weekly_v0"
+DEFAULT_DATASET = "curated_weekly"
 DEFAULT_OUTPUT = REPO_ROOT / "docs/data-snapshots.json"
 DEFAULT_PATHS = [
-    REPO_ROOT / "data/processed/curated_weekly_v0_parquet",
-    REPO_ROOT / "data/processed/curated_weekly_v0_csv",
+    REPO_ROOT / "data/processed/curated_weekly_parquet",
+    REPO_ROOT / "data/processed/curated_weekly_csv",
 ]
 CHUNK_SIZE = 1024 * 1024
 

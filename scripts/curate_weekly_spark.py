@@ -9,16 +9,17 @@ from pathlib import Path
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql import types as T
+from pyspark.sql import Window
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_VERSION = "v1"
+DEFAULT_VERSION = "full"
 DEFAULT_SIVIGILA = REPO_ROOT / "data/raw/sivigila_4hyg-wa9d.csv"
 DEFAULT_CLIMATE = REPO_ROOT / "data/raw/clima_normales_ideam_nsz2-kzcq.csv"
 DEFAULT_VACCINATION = REPO_ROOT / "data/raw/vacunacion_6i25-2hdt.csv"
 DEFAULT_RIPS = REPO_ROOT / "data/raw/rips_5e6c-5p2c.csv"
 DEFAULT_MOBILITY = REPO_ROOT / "data/raw/movilidad_nacional_eh75-8ah6.csv"
 
-FEATURES_ALL = {"vaccination", "rips", "mobility"}
+FEATURES_ALL = {"vaccination", "rips", "mobility", "signals"}
 
 MONTHS = [
     ("ene", 1),
@@ -48,6 +49,24 @@ CANONICAL_EVENT = {
     "chikungunya": (895, "CHIKUNGUNYA"),
     "zika": (862, "ZIKA"),
     "malaria": (830, "MALARIA"),
+}
+
+REGION_MAP = {
+    # Caribe
+    "ATLANTICO": "CARIBE", "BOLIVAR": "CARIBE", "CESAR": "CARIBE", "CORDOBA": "CARIBE", 
+    "LA GUAJIRA": "CARIBE", "MAGDALENA": "CARIBE", "SUCRE": "CARIBE", 
+    "ARCHIPIELAGO DE SAN ANDRES PROVIDENCIA Y SANTA CATALINA": "CARIBE",
+    # Pacifico
+    "CAUCA": "PACIFICO", "CHOCO": "PACIFICO", "NARINO": "PACIFICO", "VALLE DEL CAUCA": "PACIFICO",
+    # Andina
+    "ANTIOQUIA": "ANDINA", "BOYACA": "ANDINA", "CALDAS": "ANDINA", "CUNDINAMARCA": "ANDINA", 
+    "HUILA": "ANDINA", "NORTE DE SANTANDER": "ANDINA", "QUINDIO": "ANDINA", "RISARALDA": "ANDINA", 
+    "SANTANDER": "ANDINA", "TOLIMA": "ANDINA", "BOGOTA": "ANDINA",
+    # Orinoquia
+    "ARAUCA": "ORINOQUIA", "CASANARE": "ORINOQUIA", "META": "ORINOQUIA", "VICHADA": "ORINOQUIA",
+    # Amazonia
+    "AMAZONAS": "AMAZONIA", "CAQUETA": "AMAZONIA", "GUAINIA": "AMAZONIA", "GUAVIARE": "AMAZONIA", 
+    "PUTUMAYO": "AMAZONIA", "VAUPES": "AMAZONIA"
 }
 
 
@@ -108,14 +127,11 @@ def spark_normalize_text(col):
 
 
 def spark_iso_week_start(year_col_name, week_col_name):
-    """Native PySpark ISO week start date parsing"""
-    iso_str = F.concat(
-        F.col(year_col_name).cast("string"),
-        F.lit("-W"),
-        F.lpad(F.col(week_col_name).cast("string"), 2, "0"),
-        F.lit("-1")
-    )
-    return F.to_date(iso_str, "yyyy-'W'ww-u")
+    """Native PySpark ISO week start date parsing (robust to Spark 3.x)"""
+    jan4 = F.to_date(F.concat(F.col(year_col_name).cast("string"), F.lit("-01-04")))
+    # Monday of the week containing Jan 4th is the start of ISO week 1
+    week1_monday = F.next_day(F.date_sub(jan4, 7), "Monday")
+    return F.date_add(week1_monday, (F.col(week_col_name).cast("int") - 1) * 7)
 
 
 def spark_iso_week_end(year_col_name, week_col_name):
@@ -127,17 +143,20 @@ def build_spark(app_name: str) -> SparkSession:
     return (
         SparkSession.builder.appName(app_name)
         .config("spark.sql.session.timeZone", "UTC")
+        .config("spark.sql.legacy.timeParserPolicy", "LEGACY")
+        .config("spark.sql.ansi.enabled", "false")
         .getOrCreate()
     )
 
 
-def default_output(version: str, suffix: str) -> str:
-    return str(REPO_ROOT / f"data/processed/curated_weekly_{version}_{suffix}")
+def default_output(_version: str, suffix: str) -> str:
+    # Single canonical output to avoid excessive dataset versioning.
+    return str(REPO_ROOT / f"data/processed/curated_weekly_{suffix}")
 
 
-def resolve_features(version: str, raw_features: str | None) -> set[str]:
+def resolve_features(raw_features: str | None) -> set[str]:
     if not raw_features:
-        return set(FEATURES_ALL) if version == "v1" else set()
+        return set(FEATURES_ALL)
 
     tokens = {item.strip().lower() for item in raw_features.split(",") if item.strip()}
     if "all" in tokens:
@@ -170,15 +189,22 @@ def resolve_col(columns: list[str], candidates: list[str]) -> str | None:
     for name in candidates:
         if name in columns:
             return name
+    # Case insensitive fallback
+    lower_cols = {c.lower(): c for c in columns}
+    for name in candidates:
+        if name.lower() in lower_cols:
+            return lower_cols[name.lower()]
     return None
 
 
-def parse_date(col):
+def parse_date(col_name):
+    # Use to_date fallbacks for broad compatibility across Spark builds.
+    raw = F.split(F.trim(F.col(col_name).cast("string")), " ").getItem(0)
     return F.coalesce(
-        F.to_date(col),
-        F.to_date(col, "yyyy-MM-dd"),
-        F.to_date(col, "dd/MM/yyyy"),
-        F.to_date(col, "MM/dd/yyyy"),
+        F.to_date(raw, "yyyy-MM-dd"),
+        F.to_date(raw, "MM/dd/yyyy"),
+        F.to_date(raw, "dd/MM/yyyy"),
+        F.to_date(raw, "yyyy/MM/dd"),
     )
 
 
@@ -260,6 +286,11 @@ def maybe_dane(col, size: int, use_dane: bool):
     return F.trim(col)
 
 
+def normalize_muni_code(col):
+    digits = F.regexp_replace(col, r"\D", "")
+    return F.when(F.length(digits) > 0, F.substring(F.lpad(digits, 5, "0"), -5, 5))
+
+
 def load_sivigila(spark: SparkSession, path: str, use_dane: bool):
     base = spark.read.option("header", True).option("inferSchema", False).csv(path)
 
@@ -279,7 +310,16 @@ def load_sivigila(spark: SparkSession, path: str, use_dane: bool):
         .filter(F.col("disease").isNotNull())
         .withColumn("departamento_code", maybe_dane(F.col("COD_DPTO_O"), 2, use_dane))
         .withColumn("departamento_name", F.trim(F.col("Departamento_ocurrencia")))
-        .withColumn("municipio_code", maybe_dane(F.col("COD_MUN_O"), 5, use_dane))
+        .withColumn(
+            "municipio_code",
+            F.when(
+                F.lit(use_dane),
+                F.concat(
+                    maybe_dane(F.col("COD_DPTO_O"), 2, True),
+                    F.lpad(F.regexp_replace(F.col("COD_MUN_O"), r"\D", ""), 3, "0"),
+                ),
+            ).otherwise(F.trim(F.col("COD_MUN_O"))),
+        )
         .withColumn("municipio_name", F.trim(F.col("Municipio_ocurrencia")))
     )
 
@@ -346,15 +386,22 @@ def load_climate(spark: SparkSession, path: str, period: str):
         .withColumn("municipio_norm", spark_normalize_text(F.col("municipio")))
     )
 
-    period_norm = normalize_text(period)
-    base = base.filter(F.col("periodo_norm") == F.lit(period_norm))
+    # Añadir región geográfica
+    region_items = []
+    for dept, region in REGION_MAP.items():
+        region_items.extend([F.lit(dept), F.lit(region)])
+    region_map_col = F.create_map(*region_items)
+    base = base.withColumn("region_norm", region_map_col[F.col("departamento_norm")])
+
+    # Filtrar por periodo exacto (evitando la normalización agresiva de spark_normalize_text que quita guiones)
+    base = base.filter(F.trim(F.col("periodo")) == F.lit(period))
 
     param_items = []
     for key, value in PARAM_MAP.items():
         param_items.extend([F.lit(key), F.lit(value)])
     param_key = F.create_map(*param_items)
 
-    base = base.withColumn("param_key", param_key.getItem(F.col("param_norm")))
+    base = base.withColumn("param_key", param_key[F.col("param_norm")])
     base = base.filter(F.col("param_key").isNotNull())
 
     stack_expr = "stack(12, " + ", ".join(
@@ -362,6 +409,7 @@ def load_climate(spark: SparkSession, path: str, period: str):
     ) + ") as (month_key, raw_value)"
 
     melted = base.select(
+        "region_norm",
         "departamento_norm",
         "municipio_norm",
         "param_key",
@@ -374,13 +422,13 @@ def load_climate(spark: SparkSession, path: str, period: str):
     month_map = F.create_map(*month_items)
 
     melted = (
-        melted.withColumn("month_num", month_map.getItem("month_key"))
+        melted.withColumn("month_num", month_map[F.col("month_key")])
         .withColumn("value", F.regexp_replace("raw_value", ",", ".").cast("double"))
         .filter(F.col("value").isNotNull())
     )
 
     avg_values = (
-        melted.groupBy("departamento_norm", "municipio_norm", "month_num", "param_key")
+        melted.groupBy("region_norm", "departamento_norm", "municipio_norm", "month_num", "param_key")
         .agg(F.avg("value").alias("avg_value"))
     )
 
@@ -396,18 +444,25 @@ def load_climate(spark: SparkSession, path: str, period: str):
         .agg(F.avg("avg_value"))
     )
 
-    return climate_muni, climate_dept
+    climate_region = (
+        avg_values.groupBy("region_norm", "month_num")
+        .pivot("param_key", list(PARAM_MAP.values()))
+        .agg(F.avg("avg_value"))
+    )
+
+    return climate_muni, climate_dept, climate_region
 
 
 def load_vaccination(spark: SparkSession, path: str, use_dane: bool):
     # Raw file from datos.gov.co comes in Latin-1
-    base = read_csv_if_exists(spark, path, encoding="latin1")
+    base = read_csv_if_exists(spark, path, encoding="iso-8859-1")
     if base is None:
         return None
 
     for col_name in base.columns:
         base = base.withColumnRenamed(col_name, normalize_column_name(col_name))
 
+    print(f"[debug] vacunacion normalized columns: {base.columns}")
     code_col = resolve_col(
         base.columns,
         ["coddepto", "cod_depto", "codigo_departamento", "cod_departamento"],
@@ -416,7 +471,7 @@ def load_vaccination(spark: SparkSession, path: str, use_dane: bool):
         base.columns,
         ["departamento", "departamento_nombre", "nombre_departamento"],
     )
-    year_col = resolve_col(base.columns, ["ano", "anio", "year"])
+    year_col = resolve_col(base.columns, ["ano", "anio", "year", "aa_o"])
     coverage_col = resolve_col(
         base.columns,
         [
@@ -424,6 +479,7 @@ def load_vaccination(spark: SparkSession, path: str, use_dane: bool):
             "cobertura_vacunacion",
             "cobertura",
             "cobertura_porcentaje",
+            "cobertura_de_vacunacia3n",
         ],
     )
 
@@ -435,8 +491,7 @@ def load_vaccination(spark: SparkSession, path: str, use_dane: bool):
 
     vacunacion = (
         base.withColumn("departamento_code", dept_code)
-        .withColumn("departamento_name", F.col(name_col) if name_col else F.lit(None))
-        .withColumn("vaccination_year", F.col(year_col).cast("int"))
+        .withColumn("epi_year", F.col(year_col).cast("int"))
         .withColumn(
             "vaccination_coverage_pct",
             F.regexp_replace(F.col(coverage_col), ",", ".").cast("double"),
@@ -444,38 +499,31 @@ def load_vaccination(spark: SparkSession, path: str, use_dane: bool):
         .filter(F.col("departamento_code").isNotNull())
         .select(
             "departamento_code",
-            "departamento_name",
-            "vaccination_year",
+            "epi_year",
             "vaccination_coverage_pct",
         )
     )
 
-    grouped = (
-        vacunacion.groupBy("departamento_code", "vaccination_year")
-        .agg(
-            F.first("departamento_name", ignorenulls=True).alias(
-                "departamento_name"
-            ),
-            F.avg("vaccination_coverage_pct").alias("vaccination_coverage_pct"),
-        )
-        .filter(F.col("vaccination_year").isNotNull())
+    return (
+        vacunacion.groupBy("departamento_code", "epi_year")
+        .agg(F.avg("vaccination_coverage_pct").alias("vaccination_coverage_pct"))
+        .filter(F.col("epi_year").isNotNull())
     )
-
-    return grouped.withColumnRenamed("vaccination_year", "epi_year")
 
 
 def load_rips(spark: SparkSession, path: str):
     # Raw file from datos.gov.co comes in Latin-1
-    base = read_csv_if_exists(spark, path, encoding="latin1")
+    base = read_csv_if_exists(spark, path, encoding="iso-8859-1")
     if base is None:
         return None
 
     for col_name in base.columns:
         base = base.withColumnRenamed(col_name, normalize_column_name(col_name))
 
+    print(f"[debug] rips normalized columns: {base.columns}")
     dept_col = resolve_col(base.columns, ["departamento"])
     muni_col = resolve_col(base.columns, ["municipio"])
-    year_col = resolve_col(base.columns, ["ano", "anio", "year"])
+    year_col = resolve_col(base.columns, ["ano", "anio", "year", "aa_o"])
     diag_col = resolve_col(base.columns, ["diagnostico", "cie10", "dx"])
     count_col = resolve_col(
         base.columns,
@@ -552,15 +600,15 @@ def load_mobility(spark: SparkSession, path: str):
 
     print("[warn] movilidad uses calendar year for epi_year")
 
-    base = base.withColumn("fecha", parse_date(F.col(date_col))).filter(
+    base = base.withColumn("fecha", parse_date(date_col)).filter(
         F.col("fecha").isNotNull()
     )
 
     base = (
-        base.withColumn("epi_year", F.date_format(F.col("fecha"), "xxxx").cast("int"))
+        base.withColumn("epi_year", F.date_format(F.col("fecha"), "yyyy").cast("int"))
         .withColumn("epi_week", F.weekofyear(F.col("fecha")))
-        .withColumn("origin_norm", spark_normalize_text(F.col(origin_col)))
-        .withColumn("dest_norm", spark_normalize_text(F.col(dest_col)))
+        .withColumn("origin_code", normalize_muni_code(F.col(origin_col)))
+        .withColumn("dest_code", normalize_muni_code(F.col(dest_col)))
         .withColumn(
             "passengers",
             F.col(passengers_col).cast("int") if passengers_col else F.lit(0),
@@ -572,35 +620,76 @@ def load_mobility(spark: SparkSession, path: str):
     )
 
     outgoing = (
-        base.groupBy("epi_year", "epi_week", "origin_norm")
+        base.groupBy("epi_year", "epi_week", "origin_code")
         .agg(
             F.sum(F.coalesce("passengers", F.lit(0))).alias("passengers_out"),
             F.sum(F.coalesce("dispatches", F.lit(0))).alias("dispatches_out"),
         )
-        .withColumnRenamed("origin_norm", "municipio_norm")
+        .withColumnRenamed("origin_code", "municipio_code")
     )
 
     incoming = (
-        base.groupBy("epi_year", "epi_week", "dest_norm")
+        base.groupBy("epi_year", "epi_week", "dest_code")
         .agg(
             F.sum(F.coalesce("passengers", F.lit(0))).alias("passengers_in"),
             F.sum(F.coalesce("dispatches", F.lit(0))).alias("dispatches_in"),
         )
-        .withColumnRenamed("dest_norm", "municipio_norm")
+        .withColumnRenamed("dest_code", "municipio_code")
     )
 
     mobility = outgoing.join(
-        incoming, on=["epi_year", "epi_week", "municipio_norm"], how="full"
+        incoming, on=["epi_year", "epi_week", "municipio_code"], how="full"
     )
 
     return mobility.select(
         "epi_year",
         "epi_week",
-        "municipio_norm",
+        "municipio_code",
         (
             F.coalesce("passengers_in", F.lit(0))
             + F.coalesce("passengers_out", F.lit(0))
         ).alias("mobility_index"),
+    )
+
+
+def load_signals(spark: SparkSession, trends_path: str, rss_path: str):
+    trends = read_csv_if_exists(spark, trends_path)
+    rss = read_csv_if_exists(spark, rss_path)
+
+    if trends is None and rss is None:
+        return None
+
+    # Normalización de Trends
+    if trends is not None:
+        trends = (
+            trends.withColumn("week_start_date", parse_date("week_start_date"))
+            .withColumn("trends_score", F.col("trends_score").cast("double"))
+            .withColumn("epi_year", F.date_format(F.col("week_start_date"), "xxxx").cast("int"))
+            .withColumn("epi_week", F.weekofyear(F.col("week_start_date")))
+            .select("epi_year", "epi_week", "disease", "trends_score")
+        )
+
+    # Normalización de RSS
+    if rss is not None:
+        rss = (
+            rss.withColumn("week_start_date", parse_date("week_start_date"))
+            .withColumn("rss_mentions", F.col("rss_mentions").cast("int"))
+            .withColumn("epi_year", F.date_format(F.col("week_start_date"), "xxxx").cast("int"))
+            .withColumn("epi_week", F.weekofyear(F.col("week_start_date")))
+            .select("epi_year", "epi_week", "disease", "rss_mentions")
+        )
+
+    if trends is not None and rss is not None:
+        joined = trends.join(rss, on=["epi_year", "epi_week", "disease"], how="full")
+    else:
+        joined = trends if trends is not None else rss
+
+    return (
+        joined.groupBy("epi_year", "epi_week", "disease")
+        .agg(
+            F.avg("trends_score").alias("trends_score"),
+            F.sum("rss_mentions").alias("rss_mentions"),
+        )
     )
 
 
@@ -610,13 +699,20 @@ def enrich_and_write(
     vaccination,
     rips,
     mobility,
+    signals,
     version: str,
     features: set[str],
     out_parquet: str,
     out_csv: str,
 ):
-    climate_muni, climate_dept = climate
+    climate_muni, climate_dept, climate_region = climate
     
+    # Añadir región geográfica a sivigila para el fallback de nivel 3
+    region_items = []
+    for dept, region in REGION_MAP.items():
+        region_items.extend([F.lit(dept), F.lit(region)])
+    region_map_col = F.create_map(*region_items)
+    sivigila = sivigila.withColumn("region_norm", region_map_col[F.col("departamento_norm")])
     # 1. Join por municipio (primera opción)
     joined = sivigila.join(
         climate_muni, 
@@ -626,32 +722,41 @@ def enrich_and_write(
 
     # 2. Fallback por departamento (donde municipio es null)
     climate_cols = list(PARAM_MAP.values())
-    
-    # Renombrar columnas del fallback para evitar colisión
     for col in climate_cols:
         climate_dept = climate_dept.withColumnRenamed(col, f"{col}_dept")
     
-    # Crear un dataframe con los promedios del departamento para las filas que no cruzaron
-    joined_fallback = joined.join(
+    joined = joined.join(
         climate_dept,
         on=["departamento_norm", "month_num"],
         how="left"
     )
 
-    # Lógica de Coalesce: si el valor del municipio es null, usar el del departamento
     for col in climate_cols:
-        dept_col = f"{col}_dept"
-        joined_fallback = joined_fallback.withColumn(
+        joined = joined.withColumn(
             col,
-            F.coalesce(F.col(col), F.col(dept_col))
-        ).drop(dept_col)
+            F.coalesce(F.col(col), F.col(f"{col}_dept"))
+        ).drop(f"{col}_dept")
 
-    joined = joined_fallback
+    # 3. Fallback por región geográfica (donde departamento sigue siendo null)
+    for col in climate_cols:
+        climate_region = climate_region.withColumnRenamed(col, f"{col}_reg")
+    
+    joined = joined.join(
+        climate_region,
+        on=["region_norm", "month_num"],
+        how="left"
+    )
+
+    for col in climate_cols:
+        joined = joined.withColumn(
+            col,
+            F.coalesce(F.col(col), F.col(f"{col}_reg"))
+        ).drop(f"{col}_reg")
 
     if "mobility" in features and mobility is not None:
         joined = joined.join(
             mobility,
-            on=["epi_year", "epi_week", "municipio_norm"],
+            on=["epi_year", "epi_week", "municipio_code"],
             how="left",
         )
 
@@ -670,12 +775,36 @@ def enrich_and_write(
             how="left",
         )
 
-    joined = joined.drop("departamento_norm", "municipio_norm", "month_num")
+    if signals is not None:
+        joined = joined.join(
+            signals,
+            on=["epi_year", "epi_week", "disease"],
+            how="left",
+        )
 
-    if version == "v1":
-        joined = ensure_column(joined, "vaccination_coverage_pct", "double")
-        joined = ensure_column(joined, "rips_visits_total", "bigint")
-        joined = ensure_column(joined, "mobility_index", "double")
+    joined = joined.drop("departamento_norm", "municipio_norm", "month_num", "region_norm")
+
+    joined = ensure_column(joined, "vaccination_coverage_pct", "double")
+    joined = ensure_column(joined, "rips_visits_total", "bigint")
+    joined = ensure_column(joined, "mobility_index", "double")
+    joined = ensure_column(joined, "trends_score", "double")
+    joined = ensure_column(joined, "rss_mentions", "int")
+
+    if "mobility" in features and mobility is not None:
+        hotspot_window = Window.partitionBy("epi_year", "epi_week", "disease").orderBy(F.col("mobility_index"))
+        joined = joined.withColumn(
+            "mobility_hotspot_score",
+            F.round(F.percent_rank().over(hotspot_window) * F.lit(100.0), 2),
+        )
+    else:
+        joined = joined.withColumn("mobility_hotspot_score", F.lit(None).cast("double"))
+
+    joined = joined.withColumn(
+        "posibles_casos_index",
+        F.coalesce(F.col("cases_total"), F.lit(0))
+        + (F.coalesce(F.col("trends_score"), F.lit(0.0)) * F.lit(0.1))
+        + (F.coalesce(F.col("rss_mentions").cast("double"), F.lit(0.0)) * F.lit(0.5)),
+    )
 
     coverage_cols = [
         "temp_avg_c",
@@ -684,14 +813,18 @@ def enrich_and_write(
         "humidity_avg_pct",
         "precipitation_mm",
     ]
-    if version == "v1":
-        coverage_cols.extend(
-            [
-                "vaccination_coverage_pct",
-                "rips_visits_total",
-                "mobility_index",
-            ]
-        )
+    coverage_cols.extend(
+        [
+            "vaccination_coverage_pct",
+            "rips_visits_total",
+            "mobility_index",
+            "mobility_hotspot_score",
+            "trends_score",
+            "rss_mentions",
+            "posibles_casos_index",
+        ]
+    )
+
     log_feature_coverage(joined, coverage_cols)
 
     event_code = (
@@ -734,14 +867,17 @@ def enrich_and_write(
         "precipitation_mm",
     ]
 
-    if version == "v1":
-        columns.extend(
-            [
-                "vaccination_coverage_pct",
-                "rips_visits_total",
-                "mobility_index",
-            ]
-        )
+    columns.extend(
+        [
+            "vaccination_coverage_pct",
+            "rips_visits_total",
+            "mobility_index",
+            "mobility_hotspot_score",
+            "trends_score",
+            "rss_mentions",
+            "posibles_casos_index",
+        ]
+    )
 
     final_df = (
         joined.withColumn("event_code", event_code)
@@ -757,7 +893,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Build curated weekly dataset with PySpark"
     )
-    parser.add_argument("--version", default=DEFAULT_VERSION, choices=["v0", "v1"])
+    parser.add_argument("--version", default=DEFAULT_VERSION, choices=["v0", "v1", "v2", "full"])
     parser.add_argument(
         "--features",
         default="",
@@ -774,8 +910,8 @@ def main() -> int:
     args = parser.parse_args()
 
     version = args.version.lower()
-    features = resolve_features(version, args.features)
-    use_dane = version == "v1"
+    features = resolve_features(args.features)
+    use_dane = version != "v0"
 
     out_parquet = args.out_parquet or default_output(version, "parquet")
     out_csv = args.out_csv or default_output(version, "csv")
@@ -801,12 +937,17 @@ def main() -> int:
         if mobility is None:
             print("[warn] mobility feature disabled (missing columns or file)")
 
+    signals = None
+    if "signals" in features:
+        signals = load_signals(spark, "data/raw/signals_trends.csv", "data/raw/signals_rss.csv")
+
     enrich_and_write(
         sivigila,
         climate,
         vaccination,
         rips,
         mobility,
+        signals,
         version,
         features,
         out_parquet,

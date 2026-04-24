@@ -8,7 +8,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_INPUT_TMPL = "data/processed/curated_weekly_{version}_parquet"
+DEFAULT_INPUT_TMPL = "data/processed/curated_weekly_parquet"
 
 REQUIRED_COLUMNS = [
     "epi_year",
@@ -28,6 +28,13 @@ REQUIRED_COLUMNS = [
     "temp_max_c",
     "humidity_avg_pct",
     "precipitation_mm",
+    "vaccination_coverage_pct",
+    "rips_visits_total",
+    "mobility_index",
+    "mobility_hotspot_score",
+    "trends_score",
+    "rss_mentions",
+    "posibles_casos_index",
 ]
 
 KEY_COLUMNS = [
@@ -44,22 +51,21 @@ def build_spark(app_name: str) -> SparkSession:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate curated weekly dataset")
-    parser.add_argument("--version", default="v0", choices=["v0", "v1"])
+    parser.add_argument("--version", default="full", choices=["v0", "v1", "v2", "full"])
     parser.add_argument("--input", default="")
     args = parser.parse_args()
 
-    input_path = args.input or str(REPO_ROOT / DEFAULT_INPUT_TMPL.format(version=args.version))
+    if args.input:
+        input_path = args.input
+    elif args.version == "full":
+        input_path = str(REPO_ROOT / DEFAULT_INPUT_TMPL)
+    else:
+        input_path = str(REPO_ROOT / f"data/processed/curated_weekly_{args.version}_parquet")
 
     spark = build_spark(f"validate_curated_{args.version}")
     df = spark.read.parquet(input_path)
 
     expected_cols = REQUIRED_COLUMNS.copy()
-    if args.version == "v1":
-        expected_cols.extend([
-            "vaccination_coverage_pct", 
-            "rips_visits_total", 
-            "mobility_index"
-        ])
 
     missing = [col for col in expected_cols if col not in df.columns]
     if missing:
