@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
 
 import argparse
-import datetime as dt
+import os
 import re
 import unicodedata
+import datetime as dt
 from pathlib import Path
+
+# Configuración de entorno para Windows/Spark
+os.environ['PYSPARK_PYTHON'] = r'C:\Users\juanc\AppData\Local\Programs\Python\Python313\python.exe'
+os.environ['PYSPARK_DRIVER_PYTHON'] = r'C:\Users\juanc\AppData\Local\Programs\Python\Python313\python.exe'
 
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
@@ -67,6 +72,42 @@ REGION_MAP = {
     # Amazonia
     "AMAZONAS": "AMAZONIA", "CAQUETA": "AMAZONIA", "GUAINIA": "AMAZONIA", "GUAVIARE": "AMAZONIA", 
     "PUTUMAYO": "AMAZONIA", "VAUPES": "AMAZONIA"
+}
+
+LAT_LON_MAP = {
+    "05": (6.2518, -75.5636),   # Antioquia
+    "08": (10.9685, -74.7813),  # Atlantico
+    "11": (4.6097, -74.0817),   # Bogota
+    "13": (10.3997, -75.4762),  # Bolivar
+    "15": (5.5353, -73.3678),   # Boyaca
+    "17": (5.0689, -75.5174),   # Caldas
+    "18": (1.6144, -75.6062),   # Caqueta
+    "19": (2.4454, -76.6132),   # Cauca
+    "20": (10.4631, -73.2532),  # Cesar
+    "23": (8.7480, -75.8814),   # Cordoba
+    "25": (4.5981, -74.0758),   # Cundinamarca
+    "27": (5.6947, -76.6611),   # Choco
+    "41": (2.9273, -75.2819),   # Huila
+    "44": (11.5440, -72.9069),  # La Guajira
+    "47": (11.2408, -74.1990),  # Magdalena
+    "50": (4.1420, -73.6266),   # Meta
+    "52": (1.2136, -77.2811),   # Nariño
+    "54": (7.8939, -72.5078),   # Norte de Santander
+    "63": (4.5339, -75.6811),   # Quindio
+    "66": (4.8133, -75.6961),   # Risaralda
+    "68": (7.1193, -73.1227),   # Santander
+    "70": (9.3047, -75.3978),   # Sucre
+    "73": (4.4389, -75.2322),   # Tolima
+    "76": (3.4516, -76.5320),   # Valle del Cauca
+    "81": (7.0847, -70.7591),   # Arauca
+    "85": (5.3378, -72.3959),   # Casanare
+    "86": (1.1478, -76.6478),   # Putumayo
+    "88": (12.5847, -81.7006),  # San Andres
+    "91": (-4.2153, -69.9406),  # Amazonas
+    "94": (3.8653, -67.9239),   # Guainia
+    "95": (2.5729, -72.6459),   # Guaviare
+    "97": (1.2503, -70.2339),   # Vaupes
+    "99": (6.1822, -67.4815),   # Vichada
 }
 
 
@@ -703,190 +744,165 @@ def enrich_and_write(
     version: str,
     features: set[str],
     out_parquet: str,
-    out_csv: str,
+    out_csv_prefix: str,
 ):
     climate_muni, climate_dept, climate_region = climate
     
-    # Añadir región geográfica a sivigila para el fallback de nivel 3
+    # Cachear sivigila ya que se usa como base
+    sivigila = sivigila.cache()
+    
+    # --- 1. DIMENSIONES (Star Schema) ---
+    print("[info] Generando Dimensiones (Departamentos y Municipios)...")
+    
+    # Añadir región geográfica a sivigila
     region_items = []
     for dept, region in REGION_MAP.items():
         region_items.extend([F.lit(dept), F.lit(region)])
     region_map_col = F.create_map(*region_items)
     sivigila = sivigila.withColumn("region_norm", region_map_col[F.col("departamento_norm")])
-    # 1. Join por municipio (primera opción)
-    joined = sivigila.join(
-        climate_muni, 
-        on=["departamento_norm", "municipio_norm", "month_num"], 
-        how="left"
-    )
-
-    # 2. Fallback por departamento (donde municipio es null)
-    climate_cols = list(PARAM_MAP.values())
-    for col in climate_cols:
-        climate_dept = climate_dept.withColumnRenamed(col, f"{col}_dept")
     
-    joined = joined.join(
-        climate_dept,
-        on=["departamento_norm", "month_num"],
-        how="left"
-    )
-
-    for col in climate_cols:
-        joined = joined.withColumn(
-            col,
-            F.coalesce(F.col(col), F.col(f"{col}_dept"))
-        ).drop(f"{col}_dept")
-
-    # 3. Fallback por región geográfica (donde departamento sigue siendo null)
-    for col in climate_cols:
-        climate_region = climate_region.withColumnRenamed(col, f"{col}_reg")
+    dim_departamentos = sivigila.select(
+        "departamento_code", "departamento_name", "region_norm"
+    ).distinct().filter(F.col("departamento_code").isNotNull())
     
-    joined = joined.join(
-        climate_region,
-        on=["region_norm", "month_num"],
-        how="left"
-    )
+    # Inyectar Latitud y Longitud de forma nativa para evitar fallos de memoria
+    lat_map_items = []
+    lon_map_items = []
+    for code, (lat, lon) in LAT_LON_MAP.items():
+        lat_map_items.extend([F.lit(code), F.lit(lat)])
+        lon_map_items.extend([F.lit(code), F.lit(lon)])
+    
+    lat_map_col = F.create_map(*lat_map_items)
+    lon_map_col = F.create_map(*lon_map_items)
+    
+    dim_departamentos = dim_departamentos.withColumn("latitude", lat_map_col[F.col("departamento_code")])
+    dim_departamentos = dim_departamentos.withColumn("longitude", lon_map_col[F.col("departamento_code")])
+    
+    dim_municipios = sivigila.select(
+        "municipio_code", "municipio_name", "departamento_code"
+    ).distinct().filter(F.col("municipio_code").isNotNull())
 
-    for col in climate_cols:
-        joined = joined.withColumn(
-            col,
-            F.coalesce(F.col(col), F.col(f"{col}_reg"))
-        ).drop(f"{col}_reg")
+
+    # --- 2. FACT: CORE WEEKLY (SIVIGILA + Movilidad + RIPS + Signals) ---
+    print("[info] Generando Fact Table: Core Weekly...")
+    core_df = sivigila
 
     if "mobility" in features and mobility is not None:
-        joined = joined.join(
+        core_df = core_df.join(
             mobility,
             on=["epi_year", "epi_week", "municipio_code"],
             how="left",
         )
 
     if "rips" in features and rips is not None:
-        # RIPS uses DANE codes extracted from "05541 - Peñol" format
-        joined = joined.join(
+        core_df = core_df.join(
             rips,
             on=["departamento_code", "municipio_code", "epi_year", "disease"],
             how="left",
         )
 
-    if "vaccination" in features and vaccination is not None:
-        joined = joined.join(
-            vaccination,
-            on=["departamento_code", "epi_year"],
-            how="left",
-        )
-
     if signals is not None:
-        joined = joined.join(
+        core_df = core_df.join(
             signals,
             on=["epi_year", "epi_week", "disease"],
             how="left",
         )
 
-    joined = joined.drop("departamento_norm", "municipio_norm", "month_num", "region_norm")
+    # Limpieza de columnas para la tabla de hechos (eliminar nombres, dejar solo códigos foráneos)
+    core_df = core_df.drop("departamento_name", "municipio_name", "departamento_norm", "municipio_norm", "region_norm")
 
-    joined = ensure_column(joined, "vaccination_coverage_pct", "double")
-    joined = ensure_column(joined, "rips_visits_total", "bigint")
-    joined = ensure_column(joined, "mobility_index", "double")
-    joined = ensure_column(joined, "trends_score", "double")
-    joined = ensure_column(joined, "rss_mentions", "int")
+    core_df = ensure_column(core_df, "rips_visits_total", "bigint")
+    core_df = ensure_column(core_df, "mobility_index", "double")
+    core_df = ensure_column(core_df, "trends_score", "double")
+    core_df = ensure_column(core_df, "rss_mentions", "int")
 
     if "mobility" in features and mobility is not None:
         hotspot_window = Window.partitionBy("epi_year", "epi_week", "disease").orderBy(F.col("mobility_index"))
-        joined = joined.withColumn(
+        core_df = core_df.withColumn(
             "mobility_hotspot_score",
             F.round(F.percent_rank().over(hotspot_window) * F.lit(100.0), 2),
         )
     else:
-        joined = joined.withColumn("mobility_hotspot_score", F.lit(None).cast("double"))
+        core_df = core_df.withColumn("mobility_hotspot_score", F.lit(None).cast("double"))
 
-    joined = joined.withColumn(
+    core_df = core_df.withColumn(
         "posibles_casos_index",
         F.coalesce(F.col("cases_total"), F.lit(0))
         + (F.coalesce(F.col("trends_score"), F.lit(0.0)) * F.lit(0.1))
         + (F.coalesce(F.col("rss_mentions").cast("double"), F.lit(0.0)) * F.lit(0.5)),
     )
 
-    coverage_cols = [
-        "temp_avg_c",
-        "temp_min_c",
-        "temp_max_c",
-        "humidity_avg_pct",
-        "precipitation_mm",
-    ]
-    coverage_cols.extend(
-        [
-            "vaccination_coverage_pct",
-            "rips_visits_total",
-            "mobility_index",
-            "mobility_hotspot_score",
-            "trends_score",
-            "rss_mentions",
-            "posibles_casos_index",
-        ]
-    )
-
-    log_feature_coverage(joined, coverage_cols)
-
     event_code = (
         F.when(F.col("disease") == "dengue", F.lit(CANONICAL_EVENT["dengue"][0]))
-        .when(
-            F.col("disease") == "chikungunya",
-            F.lit(CANONICAL_EVENT["chikungunya"][0]),
-        )
+        .when(F.col("disease") == "chikungunya", F.lit(CANONICAL_EVENT["chikungunya"][0]))
         .when(F.col("disease") == "zika", F.lit(CANONICAL_EVENT["zika"][0]))
         .when(F.col("disease") == "malaria", F.lit(CANONICAL_EVENT["malaria"][0]))
     )
 
-    event_name = (
-        F.when(F.col("disease") == "dengue", F.lit(CANONICAL_EVENT["dengue"][1]))
-        .when(
-            F.col("disease") == "chikungunya",
-            F.lit(CANONICAL_EVENT["chikungunya"][1]),
-        )
-        .when(F.col("disease") == "zika", F.lit(CANONICAL_EVENT["zika"][1]))
-        .when(F.col("disease") == "malaria", F.lit(CANONICAL_EVENT["malaria"][1]))
-    )
-
-    columns = [
-        "epi_year",
-        "epi_week",
-        "week_start_date",
-        "week_end_date",
-        "departamento_code",
-        "departamento_name",
-        "municipio_code",
-        "municipio_name",
-        "event_code",
-        "event_name",
-        "disease",
-        "cases_total",
-        "temp_avg_c",
-        "temp_min_c",
-        "temp_max_c",
-        "humidity_avg_pct",
-        "precipitation_mm",
-    ]
-
-    columns.extend(
-        [
-            "vaccination_coverage_pct",
+    fact_core_weekly = (
+        core_df.withColumn("event_code", event_code)
+        .select(
+            "epi_year",
+            "epi_week",
+            "week_start_date",
+            "week_end_date",
+            "month_num",
+            "departamento_code",
+            "municipio_code",
+            "event_code",
+            "disease",
+            "cases_total",
             "rips_visits_total",
             "mobility_index",
             "mobility_hotspot_score",
             "trends_score",
             "rss_mentions",
-            "posibles_casos_index",
-        ]
+            "posibles_casos_index"
+        )
     )
 
-    final_df = (
-        joined.withColumn("event_code", event_code)
-        .withColumn("event_name", event_name)
-        .select(*columns)
+    # --- 3. FACT: AVG CASES (Annual by Dept) ---
+    print("[info] Generando Fact Table: Promedios Anuales...")
+    fact_avg_cases = (
+        sivigila.groupBy("departamento_code", "epi_year", "disease")
+        .agg(F.avg("cases_total").alias("avg_weekly_cases"))
+        .filter(F.col("departamento_code").isNotNull())
     )
 
-    final_df.write.mode("overwrite").parquet(out_parquet)
-    final_df.coalesce(1).write.mode("overwrite").option("header", True).csv(out_csv)
+    # --- 4. FACT: CLIMATE (Monthly by Dept) ---
+    print("[info] Generando Fact Table: Clima Mensual...")
+    dept_map = sivigila.select("departamento_norm", "departamento_code").distinct()
+    fact_climate = (
+        climate_dept.join(dept_map, on="departamento_norm", how="left")
+        .filter(F.col("departamento_code").isNotNull())
+        .drop("departamento_norm")
+    )
+
+    # --- 5. FACT: VACCINATION (Annual by Dept) ---
+    fact_vaccination = None
+    if vaccination is not None:
+        print("[info] Generando Fact Table: Vacunación Anual...")
+        fact_vaccination = vaccination.filter(F.col("departamento_code").isNotNull())
+
+    # --- 6. EXPORTAR TODO EN FORMATO STAR SCHEMA ---
+    print(f"[info] Exportando Modelo de Estrella a {out_csv_prefix}_* ...")
+    
+    fact_core_weekly.write.mode("overwrite").parquet(out_parquet)
+    
+    dim_departamentos.coalesce(1).write.mode("overwrite").option("header", True).csv(f"{out_csv_prefix}_dim_departamentos")
+    dim_municipios.coalesce(1).write.mode("overwrite").option("header", True).csv(f"{out_csv_prefix}_dim_municipios")
+    fact_core_weekly.coalesce(1).write.mode("overwrite").option("header", True).csv(f"{out_csv_prefix}_fact_core_weekly")
+    fact_climate.coalesce(1).write.mode("overwrite").option("header", True).csv(f"{out_csv_prefix}_fact_climate_monthly")
+    fact_avg_cases.coalesce(1).write.mode("overwrite").option("header", True).csv(f"{out_csv_prefix}_fact_avg_cases_annual")
+
+    if fact_vaccination is not None:
+        fact_vaccination.coalesce(1).write.mode("overwrite").option("header", True).csv(f"{out_csv_prefix}_fact_vaccination_annual")
+
+    sivigila.unpersist()
+
+
+
+
 
 
 def main() -> int:
@@ -951,7 +967,7 @@ def main() -> int:
         version,
         features,
         out_parquet,
-        out_csv,
+        out_csv.replace(".csv", ""), # Usar como prefijo
     )
 
     count = sivigila.count()
