@@ -4,14 +4,14 @@ Este documento contiene el plan paso a paso y el código necesario para implemen
 
 ## 1. Ingesta y Limpieza (Power Query - Código M)
 
-Al importar el CSV desde `data/processed/curated_weekly_v0_csv/`, entra en **"Transform Data"** y usa este código en el **Editor Avanzado**.
+Al importar el CSV desde `data/processed/curated_weekly_csv/`, entra en **"Transform Data"** y usa este código en el **Editor Avanzado**.
 
 > [!TIP]
 > Asegúrate de ajustar la ruta del archivo en la variable `Source` según tu ubicación local.
 
 ```powerquery
 let
-    Source = Csv.Document(File.Contents("C:\Users\juanc\Desktop\UCC\Sexto semestre\HC\ECOS\data\processed\curated_weekly_v0_csv\part-00000-40633e34-d0bd-4073-b2ec-8e51f385be11-c000.csv"), [Delimiter=",", Columns=17, Encoding=65001, QuoteStyle=QuoteStyle.None]),
+    Source = Csv.Document(File.Contents("C:\Users\juanc\Desktop\UCC\Sexto semestre\HC\ECOS\data\processed\curated_weekly_csv\part-00000-40633e34-d0bd-4073-b2ec-8e51f385be11-c000.csv"), [Delimiter=",", Columns=17, Encoding=65001, QuoteStyle=QuoteStyle.None]),
     #"Promoted Headers" = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),
     #"Changed Type" = Table.TransformColumnTypes(#"Promoted Headers",{
         {"epi_year", Int64.Type}, 
@@ -39,14 +39,14 @@ Crea las siguientes medidas en una tabla de medidas dedicada para mantener el or
 ```dax
 // Total de casos acumulados
 Total Casos = 
-SUM('part-00000-32802cf2-bdfe-486f-80d2-debb7a4b6806-c000'[cases_total])
+SUM('curated_weekly_csv'[cases_total])
 
 // Casos de la semana anterior (para comparar)
 Casos Semana Anterior = 
 CALCULATE(
     [Total Casos],
     DATEADD(
-        'part-00000-32802cf2-bdfe-486f-80d2-debb7a4b6806-c000'[week_start_date],
+        'curated_weekly_csv'[week_start_date],
         -7,
         DAY
     )
@@ -66,13 +66,13 @@ IF(
 ### B. Indicadores Climáticos
 ```dax
 Promedio Temperatura = 
-AVERAGE('part-00000-32802cf2-bdfe-486f-80d2-debb7a4b6806-c000'[temp_avg_c])
+AVERAGE('curated_weekly_csv'[temp_avg_c])
 
 Promedio Humedad = 
-AVERAGE('part-00000-32802cf2-bdfe-486f-80d2-debb7a4b6806-c000'[humidity_avg_pct])
+AVERAGE('curated_weekly_csv'[humidity_avg_pct])
 
 Precipitación Total = 
-SUM('part-00000-32802cf2-bdfe-486f-80d2-debb7a4b6806-c000'[precipitation_mm])
+SUM('curated_weekly_csv'[precipitation_mm])
 ```
 
 ### C. Lógica de Alerta (Semáforo)

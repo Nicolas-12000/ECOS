@@ -16,6 +16,8 @@ logger = logging.getLogger(__name__)
 REPO_ROOT = Path(__file__).resolve().parents[3]
 _PARQUET_V1 = REPO_ROOT / "data/processed/curated_weekly_v1_parquet"
 _CSV_V1 = REPO_ROOT / "data/processed/curated_weekly_v1_csv"
+_PARQUET_FRESH = REPO_ROOT / "data/processed/curated_weekly_fresh_parquet"
+_CSV_FRESH = REPO_ROOT / "data/processed/curated_weekly_fresh_csv"
 _PARQUET_V0 = REPO_ROOT / "data/processed/curated_weekly_v0_parquet"
 _CSV_V0 = REPO_ROOT / "data/processed/curated_weekly_v0_csv"
 
@@ -26,7 +28,12 @@ OUTBREAK_THRESHOLD = 5.0
 @lru_cache(maxsize=1)
 def _load_df() -> pd.DataFrame:
     """Carga el dataset curado una vez y lo cachea en memoria."""
-    for parquet, csv_dir in [(_PARQUET_V1, _CSV_V1), (_PARQUET_V0, _CSV_V0)]:
+    for parquet, csv_dir in [
+        (_PARQUET_FRESH, _CSV_FRESH),
+        (_PARQUET_V1, _CSV_V1),
+        (REPO_ROOT / "data/processed/curated_weekly_parquet", REPO_ROOT / "data/processed/curated_weekly_csv"),
+        (_PARQUET_V0, _CSV_V0),
+    ]:
         if parquet.exists():
             logger.info("Loading curated dataset from %s", parquet)
             df = pd.read_parquet(parquet)

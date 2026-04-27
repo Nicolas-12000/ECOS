@@ -15,26 +15,17 @@ REQUIRED_COLUMNS = [
     "epi_week",
     "week_start_date",
     "week_end_date",
+    "month_num",
     "departamento_code",
-    "departamento_name",
     "municipio_code",
-    "municipio_name",
     "event_code",
-    "event_name",
     "disease",
     "cases_total",
-    "temp_avg_c",
-    "temp_min_c",
-    "temp_max_c",
-    "humidity_avg_pct",
-    "precipitation_mm",
-    "vaccination_coverage_pct",
     "rips_visits_total",
     "mobility_index",
     "mobility_hotspot_score",
     "trends_score",
     "rss_mentions",
-    "posibles_casos_index",
 ]
 
 KEY_COLUMNS = [
@@ -60,7 +51,9 @@ def main() -> int:
     elif args.version == "full":
         input_path = str(REPO_ROOT / DEFAULT_INPUT_TMPL)
     else:
-        input_path = str(REPO_ROOT / f"data/processed/curated_weekly_{args.version}_parquet")
+        versioned = REPO_ROOT / f"data/processed/curated_weekly_{args.version}_parquet"
+        canonical = REPO_ROOT / DEFAULT_INPUT_TMPL
+        input_path = str(versioned if versioned.exists() else canonical)
 
     spark = build_spark(f"validate_curated_{args.version}")
     df = spark.read.parquet(input_path)

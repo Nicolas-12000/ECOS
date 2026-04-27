@@ -1,5 +1,6 @@
 import logging
 from pathlib import Path
+import re
 
 import numpy as np
 import pandas as pd
@@ -22,7 +23,12 @@ EXOG_COLS = ["vaccination_coverage_pct", "rips_visits_total", "mobility_index"]
 def _load_model():
     """Carga el modelo más reciente disponible (v1 → v0 fallback)."""
     import joblib
-    for path in [_MODEL_PATH_V1, _MODEL_PATH_V0]:
+    candidates = sorted(
+        REPO_ROOT.glob("models/baseline_v*.joblib"),
+        key=lambda p: int(re.search(r"baseline_v(\d+)", p.stem).group(1)) if re.search(r"baseline_v(\d+)", p.stem) else -1,
+        reverse=True,
+    )
+    for path in candidates + [_MODEL_PATH_V1, _MODEL_PATH_V0]:
         if path.exists():
             logger.info("Loading model from %s", path)
             return joblib.load(path)

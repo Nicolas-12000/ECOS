@@ -18,8 +18,8 @@ from xgboost import XGBRegressor
 from utils import add_lags, evaluate_metrics, load_dataset, write_report
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_PARQUET = REPO_ROOT / "data/processed/curated_weekly_v1_parquet"
-DEFAULT_CSV_DIR = REPO_ROOT / "data/processed/curated_weekly_v1_csv"
+DEFAULT_PARQUET = REPO_ROOT / "data/processed/curated_weekly_parquet"
+DEFAULT_CSV_DIR = REPO_ROOT / "data/processed/curated_weekly_csv"
 DEFAULT_BASELINE_METRICS = REPO_ROOT / "models/baseline_v0_metrics.json"
 DEFAULT_REPORT = REPO_ROOT / "docs/metrics-baseline-v1.md"
 DEFAULT_METRICS = REPO_ROOT / "models/baseline_v1_metrics.json"

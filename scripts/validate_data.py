@@ -227,7 +227,7 @@ def validate_duplicates(spark, path: str) -> bool:
 def main():
     parser_args = sys.argv[1:] if len(sys.argv) > 1 else []
     
-    input_path = str(PROCESSED_DIR / "curated_weekly_v0_parquet")
+    input_path = str(PROCESSED_DIR / "curated_weekly_parquet")
     
     if parser_args:
         input_path = parser_args[0]

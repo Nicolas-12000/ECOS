@@ -3,13 +3,16 @@
 import argparse
 import os
 import re
+import sys
+import shutil
+import subprocess
 import unicodedata
 import datetime as dt
 from pathlib import Path
 
-# Configuración de entorno para Windows/Spark
-os.environ['PYSPARK_PYTHON'] = r'C:\Users\juanc\AppData\Local\Programs\Python\Python313\python.exe'
-os.environ['PYSPARK_DRIVER_PYTHON'] = r'C:\Users\juanc\AppData\Local\Programs\Python\Python313\python.exe'
+# Use the active interpreter inside the current environment.
+os.environ.setdefault("PYSPARK_PYTHON", sys.executable)
+os.environ.setdefault("PYSPARK_DRIVER_PYTHON", sys.executable)
 
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
@@ -23,6 +26,8 @@ DEFAULT_CLIMATE = REPO_ROOT / "data/raw/clima_normales_ideam_nsz2-kzcq.csv"
 DEFAULT_VACCINATION = REPO_ROOT / "data/raw/vacunacion_6i25-2hdt.csv"
 DEFAULT_RIPS = REPO_ROOT / "data/raw/rips_5e6c-5p2c.csv"
 DEFAULT_MOBILITY = REPO_ROOT / "data/raw/movilidad_nacional_eh75-8ah6.csv"
+DEFAULT_FRESH_PARQUET = REPO_ROOT / "data/processed/curated_weekly_fresh_parquet"
+DEFAULT_FRESH_CSV = REPO_ROOT / "data/processed/curated_weekly_fresh_csv"
 
 FEATURES_ALL = {"vaccination", "rips", "mobility", "signals"}
 
@@ -193,6 +198,14 @@ def build_spark(app_name: str) -> SparkSession:
 def default_output(_version: str, suffix: str) -> str:
     # Single canonical output to avoid excessive dataset versioning.
     return str(REPO_ROOT / f"data/processed/curated_weekly_{suffix}")
+
+
+def clear_output_path(path_str: str) -> None:
+    path = Path(path_str)
+    if path.exists():
+        shutil.rmtree(path)
+    if path.exists():
+        subprocess.run(["rm", "-rf", str(path)], check=True)
 
 
 def resolve_features(raw_features: str | None) -> set[str]:
@@ -435,7 +448,12 @@ def load_climate(spark: SparkSession, path: str, period: str):
     base = base.withColumn("region_norm", region_map_col[F.col("departamento_norm")])
 
     # Filtrar por periodo exacto (evitando la normalización agresiva de spark_normalize_text que quita guiones)
-    base = base.filter(F.trim(F.col("periodo")) == F.lit(period))
+    period_filtered = base.filter(F.trim(F.col("periodo")) == F.lit(period))
+    # Si no hay datos para el periodo pedido, usar todos los periodos disponibles (fallback)
+    if period_filtered.count() > 0:
+        base = period_filtered
+    else:
+        print(f"[warn] climate: period {period} not found; using all available periods")
 
     param_items = []
     for key, value in PARAM_MAP.items():
@@ -694,31 +712,66 @@ def load_mobility(spark: SparkSession, path: str):
 
 
 def load_signals(spark: SparkSession, trends_path: str, rss_path: str):
+    import pandas as pd
+
     trends = read_csv_if_exists(spark, trends_path)
     rss = read_csv_if_exists(spark, rss_path)
 
     if trends is None and rss is None:
         return None
 
-    # Normalización de Trends
+    def _interpolate_monthly_to_weekly(pdf: pd.DataFrame) -> pd.DataFrame:
+        if pdf.empty:
+            return pdf
+        pdf = pdf.copy()
+        pdf["week_start_date"] = pd.to_datetime(pdf["week_start_date"], errors="coerce")
+        pdf = pdf.dropna(subset=["week_start_date", "disease", "trends_score"])
+
+        weekly_frames = []
+        for disease, group in pdf.groupby("disease"):
+            group = group.sort_values("week_start_date")
+            group = group.set_index("week_start_date")[["trends_score"]]
+            # Alinear a lunes para trabajar sobre una frecuencia semanal consistente
+            group.index = group.index - pd.to_timedelta(group.index.weekday, unit="D")
+            weekly_index = pd.date_range(group.index.min(), group.index.max(), freq="W-MON")
+            weekly = group.reindex(weekly_index)
+            weekly["trends_score"] = weekly["trends_score"].interpolate(method="time", limit_direction="both")
+            weekly = weekly.reset_index().rename(columns={"index": "week_start_date"})
+            weekly["disease"] = disease
+            weekly_frames.append(weekly)
+
+        out = pd.concat(weekly_frames, ignore_index=True) if weekly_frames else pd.DataFrame()
+        if out.empty:
+            return out
+        out["epi_year"] = out["week_start_date"].dt.isocalendar().year.astype(int)
+        out["epi_week"] = out["week_start_date"].dt.isocalendar().week.astype(int)
+        return out
+
+    def _align_weekly(pdf: pd.DataFrame) -> pd.DataFrame:
+        if pdf.empty:
+            return pdf
+        pdf = pdf.copy()
+        pdf["week_start_date"] = pd.to_datetime(pdf["week_start_date"], errors="coerce")
+        pdf = pdf.dropna(subset=["week_start_date", "disease"])
+        pdf["week_start_date"] = pdf["week_start_date"].dt.normalize() - pd.to_timedelta(pdf["week_start_date"].dt.weekday, unit="D")
+        pdf["epi_year"] = pdf["week_start_date"].dt.isocalendar().year.astype(int)
+        pdf["epi_week"] = pdf["week_start_date"].dt.isocalendar().week.astype(int)
+        return pdf
+
+    # Normalización de Trends: convertir a semanas ISO, expandiendo/aliñando fechas mensuales a semanas.
     if trends is not None:
-        trends = (
-            trends.withColumn("week_start_date", parse_date("week_start_date"))
-            .withColumn("trends_score", F.col("trends_score").cast("double"))
-            .withColumn("epi_year", F.date_format(F.col("week_start_date"), "xxxx").cast("int"))
-            .withColumn("epi_week", F.weekofyear(F.col("week_start_date")))
-            .select("epi_year", "epi_week", "disease", "trends_score")
-        )
+        trends_pdf = trends.toPandas()
+        trends_pdf = _interpolate_monthly_to_weekly(trends_pdf)
+        trends = spark.createDataFrame(trends_pdf[["epi_year", "epi_week", "disease", "trends_score"]])
 
     # Normalización de RSS
     if rss is not None:
-        rss = (
-            rss.withColumn("week_start_date", parse_date("week_start_date"))
-            .withColumn("rss_mentions", F.col("rss_mentions").cast("int"))
-            .withColumn("epi_year", F.date_format(F.col("week_start_date"), "xxxx").cast("int"))
-            .withColumn("epi_week", F.weekofyear(F.col("week_start_date")))
-            .select("epi_year", "epi_week", "disease", "rss_mentions")
-        )
+        rss_pdf = rss.toPandas()
+        rss_pdf = _align_weekly(rss_pdf)
+        rss_pdf["rss_mentions"] = pd.to_numeric(rss_pdf["rss_mentions"], errors="coerce")
+        rss_pdf = rss_pdf.dropna(subset=["rss_mentions"])
+        rss_pdf = rss_pdf[["epi_year", "epi_week", "disease", "rss_mentions"]]
+        rss = spark.createDataFrame(rss_pdf)
 
     if trends is not None and rss is not None:
         joined = trends.join(rss, on=["epi_year", "epi_week", "disease"], how="full")
@@ -794,6 +847,18 @@ def enrich_and_write(
             how="left",
         )
 
+    # --- Join climate by municipio/departamento + month if available (avoid missing climate values later) ---
+    try:
+        if climate_muni is not None:
+            core_df = core_df.join(
+                climate_muni,
+                on=["departamento_norm", "municipio_norm", "month_num"],
+                how="left",
+            )
+    except Exception:
+        # defensive: keep core_df as-is if climate_muni is not joinable
+        print("[warn] climate: could not join climate_muni to core_df")
+
     if "rips" in features and rips is not None:
         core_df = core_df.join(
             rips,
@@ -815,6 +880,23 @@ def enrich_and_write(
     core_df = ensure_column(core_df, "mobility_index", "double")
     core_df = ensure_column(core_df, "trends_score", "double")
     core_df = ensure_column(core_df, "rss_mentions", "int")
+    for climate_col in ["precipitation_mm", "temp_avg_c", "temp_min_c", "temp_max_c", "humidity_avg_pct"]:
+        core_df = ensure_column(core_df, climate_col, "double")
+    core_df = ensure_column(core_df, "vaccination_coverage_pct", "double")
+
+    # Evitar valores nulos en columnas exógenas: aplicar coalesce con defaults razonables
+    core_df = core_df.withColumn("rips_visits_total", F.coalesce(F.col("rips_visits_total"), F.lit(0)).cast("long"))
+    core_df = core_df.withColumn("mobility_index", F.coalesce(F.col("mobility_index"), F.lit(0.0)).cast("double"))
+    core_df = core_df.withColumn("trends_score", F.coalesce(F.col("trends_score"), F.lit(0.0)).cast("double"))
+    core_df = core_df.withColumn("rss_mentions", F.coalesce(F.col("rss_mentions"), F.lit(0)).cast("long"))
+
+    # Coalesce climate columns (si fueron añadidas por el join). Usar 0.0 como fallback.
+    climate_cols = ["precipitation_mm", "temp_avg_c", "temp_min_c", "temp_max_c", "humidity_avg_pct"]
+    for c in climate_cols:
+        core_df = core_df.withColumn(c, F.coalesce(F.col(c), F.lit(0.0)).cast("double"))
+
+    # Coalesce vaccination coverage if present
+    core_df = core_df.withColumn("vaccination_coverage_pct", F.coalesce(F.col("vaccination_coverage_pct"), F.lit(0.0)).cast("double"))
 
     if "mobility" in features and mobility is not None:
         hotspot_window = Window.partitionBy("epi_year", "epi_week", "disease").orderBy(F.col("mobility_index"))
@@ -824,13 +906,6 @@ def enrich_and_write(
         )
     else:
         core_df = core_df.withColumn("mobility_hotspot_score", F.lit(None).cast("double"))
-
-    core_df = core_df.withColumn(
-        "posibles_casos_index",
-        F.coalesce(F.col("cases_total"), F.lit(0))
-        + (F.coalesce(F.col("trends_score"), F.lit(0.0)) * F.lit(0.1))
-        + (F.coalesce(F.col("rss_mentions").cast("double"), F.lit(0.0)) * F.lit(0.5)),
-    )
 
     event_code = (
         F.when(F.col("disease") == "dengue", F.lit(CANONICAL_EVENT["dengue"][0]))
@@ -857,7 +932,39 @@ def enrich_and_write(
             "mobility_hotspot_score",
             "trends_score",
             "rss_mentions",
-            "posibles_casos_index"
+        )
+    )
+
+    # Deduplicate: group by key columns and aggregate with sensible defaults to ensure unique primary keys
+    dedup_keys = ["epi_year", "epi_week", "month_num", "departamento_code", "municipio_code", "event_code", "disease"]
+    fact_core_weekly = (
+        fact_core_weekly.groupBy(*dedup_keys)
+        .agg(
+            F.first("week_start_date").alias("week_start_date"),
+            F.first("week_end_date").alias("week_end_date"),
+            F.sum("cases_total").alias("cases_total"),
+            F.sum("rips_visits_total").alias("rips_visits_total"),
+            F.avg("mobility_index").alias("mobility_index"),
+            F.avg("mobility_hotspot_score").alias("mobility_hotspot_score"),
+            F.avg("trends_score").alias("trends_score"),
+            F.sum("rss_mentions").alias("rss_mentions"),
+        )
+        .select(
+            "epi_year",
+            "epi_week",
+            "week_start_date",
+            "week_end_date",
+            "month_num",
+            "departamento_code",
+            "municipio_code",
+            "event_code",
+            "disease",
+            "cases_total",
+            "rips_visits_total",
+            "mobility_index",
+            "mobility_hotspot_score",
+            "trends_score",
+            "rss_mentions",
         )
     )
 
@@ -886,6 +993,14 @@ def enrich_and_write(
 
     # --- 6. EXPORTAR TODO EN FORMATO STAR SCHEMA ---
     print(f"[info] Exportando Modelo de Estrella a {out_csv_prefix}_* ...")
+
+    clear_output_path(out_parquet)
+    clear_output_path(f"{out_csv_prefix}_dim_departamentos")
+    clear_output_path(f"{out_csv_prefix}_dim_municipios")
+    clear_output_path(f"{out_csv_prefix}_fact_core_weekly")
+    clear_output_path(f"{out_csv_prefix}_fact_climate_monthly")
+    clear_output_path(f"{out_csv_prefix}_fact_avg_cases_annual")
+    clear_output_path(f"{out_csv_prefix}_fact_vaccination_annual")
     
     fact_core_weekly.write.mode("overwrite").parquet(out_parquet)
     
@@ -929,8 +1044,8 @@ def main() -> int:
     features = resolve_features(args.features)
     use_dane = version != "v0"
 
-    out_parquet = args.out_parquet or default_output(version, "parquet")
-    out_csv = args.out_csv or default_output(version, "csv")
+    out_parquet = args.out_parquet or str(DEFAULT_FRESH_PARQUET)
+    out_csv = args.out_csv or str(DEFAULT_FRESH_CSV)
 
     spark = build_spark(f"curated_weekly_{version}")
 

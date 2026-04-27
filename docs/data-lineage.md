@@ -15,8 +15,8 @@ Dejar trazabilidad clara de como se construye el dataset curado v0 desde las fue
 5. Salida en Parquet + CSV curados.
 
 ## Salidas (curated v0)
-- data/processed/curated_weekly_v0_parquet/
-- data/processed/curated_weekly_v0_csv/
+- data/processed/curated_weekly_parquet/
+- data/processed/curated_weekly_csv/
 
 ## Versionado y snapshot
 El snapshot se genera con:
