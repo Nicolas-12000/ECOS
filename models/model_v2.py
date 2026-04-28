@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Modelo V2 — XGBoost con features exógenas de V1 + Señales Tempranas (Trends/RSS).
+Modelo de señales tempranas — XGBoost con variables exógenas y señales agregadas.
 Incluye walk-forward validation y generación de SHAP para entender el impacto de las señales tempranas.
 """
 

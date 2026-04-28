@@ -1,4 +1,4 @@
-# Baseline V2 — Impacto de Señales Tempranas (Trends/RSS)
+# Modelo final — Impacto de Señales Tempranas (Trends/RSS)
 
 - Train rows (último fold): 265175
 - Test rows (último fold): 65684
@@ -16,8 +16,8 @@
 - F1: 0.8012
 - TP/FP/FN: 15759/3195/4627
 
-## Comparación V2 vs V1 (Dataset base)
-| Métrica | V1 | V2 | Delta |
+## Comparación contra baseline
+| Métrica | Baseline | Final | Delta |
 |---|---|---|---|
 | MAE | 2.8016 | 2.8293 | +0.0277 |
 | RMSE | 8.3986 | 8.7044 | +0.3058 |

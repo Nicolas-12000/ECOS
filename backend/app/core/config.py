@@ -1,6 +1,9 @@
+from pathlib import Path
 from urllib.parse import quote
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 class Settings(BaseSettings):
@@ -27,7 +30,7 @@ class Settings(BaseSettings):
             url = f"{url}?sslmode={self.db_sslmode}"
         return url
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(env_file=str(REPO_ROOT / ".env"), env_file_encoding="utf-8", extra="ignore")
 
 
 settings = Settings()

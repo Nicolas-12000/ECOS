@@ -130,9 +130,9 @@ docker-compose logs -f api
 1. Preparar datos (scripts/download_datasets.py y pipeline Spark si aplica).
 2. Base de datos:
    - Tener un Postgres local listo (por ejemplo, instalado en el sistema).
-   - Configurar `DATABASE_URL` en backend/.env.
+	- Configurar `DATABASE_URL` en `.env`.
 3. Backend:
-	- Crear venv e instalar backend/requirements.txt.
+	- Crear venv en la raiz e instalar requirements.txt.
 	- Ejecutar uvicorn app.main:app --reload.
 4. Frontend:
 	- npm install

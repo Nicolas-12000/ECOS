@@ -27,6 +27,22 @@ Respuesta:
 {"name":"ECOS API","status":"ok"}
 ```
 
+### POST /api/predict
+
+Predice casos para una enfermedad y un municipio.
+
+### GET /api/history
+
+Retorna histórico epidemiológico por municipio y enfermedad.
+
+### GET /api/signals
+
+Retorna señales tempranas agregadas por departamento y enfermedad.
+
+### POST /api/chat
+
+Asistente conversacional con contexto documental y epidemiológico.
+
 ## Swagger
 
 - http://localhost:8000/docs

@@ -33,21 +33,14 @@ npm run dev
 ### Backend
 
 ```bash
-cd backend
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+cd backend
 uvicorn app.main:app --reload
 ```
 
-Nota: cada componente tiene su propio requirements.txt (por ejemplo, backend/ y models/).
-Si prefieres instalar desde la raiz:
-
-```bash
-python -m venv .venv-backend
-source .venv-backend/bin/activate
-pip install -r backend/requirements.txt
-```
+Nota: `requirements.txt` en la raiz es el manifiesto canonico. `backend/requirements.txt` y `models/requirements.txt` solo actuan como wrappers.
 
 ## Demo local (hackaton)
 
@@ -106,11 +99,10 @@ Nota: data/processed esta en .gitignore.
 Para la demo local no se requieren servicios externos. Si usas base de datos local, configura `DATABASE_URL`:
 
 ```bash
-cd backend
 cp .env.example .env
 ```
 
-Variables opcionales: ver backend/.env.example
+Variables opcionales: ver `.env.example`.
 
 ## Licencia
 

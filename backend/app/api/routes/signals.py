@@ -24,7 +24,7 @@ def signals(
     - `mobility_index`: flujo total de pasajeros intermunicipales.
     - `vaccination_coverage_pct`: cobertura de vacunación (anual replicada por semana).
 
-    Estas señales son las features exógenas del Modelo V1 y permiten visualizar
+    Estas señales son las features exógenas del modelo final y permiten visualizar
     en el dashboard el contexto que explica cada predicción.
     """
     if disease not in VALID_DISEASES:
@@ -35,7 +35,7 @@ def signals(
         raise HTTPException(
             status_code=404,
             detail=f"No signals found for departamento_code={departamento_code} disease={disease}. "
-                   "Dataset may be V0 (no exogenous features). Run curate_weekly_spark.py --version v1.",
+                   "Dataset may be incomplete or missing exogenous features. Run the weekly curation pipeline.",
         )
 
     records = [

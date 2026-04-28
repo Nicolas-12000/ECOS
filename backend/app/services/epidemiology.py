@@ -14,12 +14,12 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-_PARQUET_V1 = REPO_ROOT / "data/processed/curated_weekly_v1_parquet"
-_CSV_V1 = REPO_ROOT / "data/processed/curated_weekly_v1_csv"
+_PARQUET_MAIN = REPO_ROOT / "data/processed/curated_weekly_parquet"
+_CSV_MAIN = REPO_ROOT / "data/processed/curated_weekly_csv"
 _PARQUET_FRESH = REPO_ROOT / "data/processed/curated_weekly_fresh_parquet"
 _CSV_FRESH = REPO_ROOT / "data/processed/curated_weekly_fresh_csv"
-_PARQUET_V0 = REPO_ROOT / "data/processed/curated_weekly_v0_parquet"
-_CSV_V0 = REPO_ROOT / "data/processed/curated_weekly_v0_csv"
+_PARQUET_LEGACY = REPO_ROOT / "data/processed/curated_weekly_v0_parquet"
+_CSV_LEGACY = REPO_ROOT / "data/processed/curated_weekly_v0_csv"
 
 VALID_DISEASES = {"dengue", "chikungunya", "zika", "malaria"}
 OUTBREAK_THRESHOLD = 5.0
@@ -30,9 +30,8 @@ def _load_df() -> pd.DataFrame:
     """Carga el dataset curado una vez y lo cachea en memoria."""
     for parquet, csv_dir in [
         (_PARQUET_FRESH, _CSV_FRESH),
-        (_PARQUET_V1, _CSV_V1),
-        (REPO_ROOT / "data/processed/curated_weekly_parquet", REPO_ROOT / "data/processed/curated_weekly_csv"),
-        (_PARQUET_V0, _CSV_V0),
+        (_PARQUET_MAIN, _CSV_MAIN),
+        (_PARQUET_LEGACY, _CSV_LEGACY),
     ]:
         if parquet.exists():
             logger.info("Loading curated dataset from %s", parquet)

@@ -68,3 +68,26 @@ class SignalsResponse(BaseModel):
     departamento_code: str
     disease: str
     records: list[SignalsItem]
+
+
+# ─── /chat ────────────────────────────────────────────────────────────────
+
+class ChatRequest(BaseModel):
+    question: str
+    disease: Optional[str] = None
+    municipio_code: Optional[str] = None
+    departamento_code: Optional[str] = None
+
+
+class ChatSource(BaseModel):
+    title: str
+    excerpt: str
+    source_type: str
+
+
+class ChatResponse(BaseModel):
+    answer: str
+    sources: list[ChatSource]
+    disease: Optional[str] = None
+    municipio_code: Optional[str] = None
+    departamento_code: Optional[str] = None

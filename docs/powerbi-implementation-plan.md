@@ -1,6 +1,6 @@
 # Plan Técnico de Implementación: Power BI Dashboard (ECOS)
 
-Este documento contiene el plan paso a paso y el código necesario para implementar el Dashboard v1 en Power BI Desktop utilizando los datos procesados de ECOS.
+Este documento contiene el plan paso a paso y el código necesario para implementar el dashboard final en Power BI Desktop utilizando los datos procesados de ECOS.
 
 ## 1. Ingesta y Limpieza (Power Query - Código M)
 
@@ -102,8 +102,8 @@ SWITCH(
 
 ---
 
-## 4. Recomendaciones de Diseño Premium
+## 4. Recomendaciones de Diseño ECOS
 
-- **Paleta de Colores**: Fondo oscuro (`#0F172A`) con acentos en cian y naranja, o blanco limpio con sombras suaves.
+- **Paleta de Colores**: Usa fondos cálidos, texto de alto contraste y un acento terracota moderado.
 - **Interactividad**: Asegúrate de que los filtros de **Enfermedad** y **Departamento** afecten a todos los visuales.
-- **Títulos**: Usa títulos descriptivos y dinámicos si es posible.
+- **Títulos**: Usa títulos descriptivos y narrativos que expliquen el riesgo, no solo el dato.

@@ -1,4 +1,4 @@
-# Diccionario de Datos Curados (ECOS v1)
+# Diccionario de Datos Curados (ECOS)
 
 Este documento describe con detalle la estructura de datos que resulta de la fase de Ingesta y Curado en PySpark. Corresponde al dataset final que consumen los modelos de predicción y el dashboard de Power BI. Este archivo consolidado en `Parquet` y `CSV` tiene grano semanal, por municipio y por tipo de enfermedad.
 

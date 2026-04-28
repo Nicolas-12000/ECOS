@@ -1,7 +1,7 @@
-# Dataset curado (schema v0)
+# Dataset curado final
 
 ## Objetivo
-Definir la estructura del dataset curado semanal a nivel municipal y enfermedad. Este dataset es la base para entrenamiento, prediccion y visualizacion en Power BI. La definicion incluye todas las fuentes planteadas en el proyecto y como se integran.
+Definir la estructura del dataset curado semanal a nivel municipal y enfermedad. Este dataset es la base para entrenamiento, prediccion y consumo analitico de la plataforma. La definicion incluye todas las fuentes planteadas en el proyecto y como se integran.
 
 ## Fuentes consideradas
 - SIVIGILA historico (4hyg-wa9d) -> base de casos por semana y territorio.
