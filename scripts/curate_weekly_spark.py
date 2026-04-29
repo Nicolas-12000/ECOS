@@ -19,15 +19,22 @@ from pyspark.sql import functions as F
 from pyspark.sql import types as T
 from pyspark.sql import Window
 
+from geo import REGION_MAP, DEPT_CODE_TO_LATLON
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_VERSION = "full"
 DEFAULT_SIVIGILA = REPO_ROOT / "data/raw/sivigila_4hyg-wa9d.csv"
 DEFAULT_CLIMATE = REPO_ROOT / "data/raw/clima_normales_ideam_nsz2-kzcq.csv"
 DEFAULT_VACCINATION = REPO_ROOT / "data/raw/vacunacion_6i25-2hdt.csv"
+DEFAULT_SIGNALS_RSS = REPO_ROOT / "data/raw/signals_rss.csv"
+DEFAULT_SIGNALS_TRENDS = REPO_ROOT / "data/raw/signals_trends.csv"
+DEFAULT_RIPS = REPO_ROOT / "data/raw/rips_5e6c-5p2c.csv"
+DEFAULT_MOBILITY_NACIONAL = REPO_ROOT / "data/raw/movilidad_nacional_eh75-8ah6.csv"
+DEFAULT_MOBILITY_MEDELLIN = REPO_ROOT / "data/raw/movilidad_medellin_terminal_pfsr-mdyi.csv"
 DEFAULT_PARQUET = REPO_ROOT / "data/processed/curated_weekly_parquet"
 DEFAULT_CSV = REPO_ROOT / "data/processed/curated_weekly_csv"
 
-FEATURES_ALL = {"vaccination"}
+FEATURES_ALL = {"vaccination", "signals", "rips", "mobility"}
 
 MONTHS = [
     ("ene", 1),
@@ -46,6 +53,7 @@ MONTHS = [
 
 PARAM_MAP = {
     "PRECIPITACION": "precipitation_mm",
+    "HUMEDAD RELATIVA": "humidity_avg_pct",
     "TEMPERATURA MINIMA": "temp_min_c",
     "TEMPERATURA MEDIA": "temp_avg_c",
     "TEMPERATURA MAXIMA": "temp_max_c",
@@ -56,60 +64,6 @@ CANONICAL_EVENT = {
     "chikungunya": (895, "CHIKUNGUNYA"),
     "zika": (862, "ZIKA"),
     "malaria": (830, "MALARIA"),
-}
-
-REGION_MAP = {
-    # Caribe
-    "ATLANTICO": "CARIBE", "BOLIVAR": "CARIBE", "CESAR": "CARIBE", "CORDOBA": "CARIBE", 
-    "LA GUAJIRA": "CARIBE", "MAGDALENA": "CARIBE", "SUCRE": "CARIBE", 
-    "ARCHIPIELAGO DE SAN ANDRES PROVIDENCIA Y SANTA CATALINA": "CARIBE",
-    # Pacifico
-    "CAUCA": "PACIFICO", "CHOCO": "PACIFICO", "NARINO": "PACIFICO", "VALLE DEL CAUCA": "PACIFICO",
-    # Andina
-    "ANTIOQUIA": "ANDINA", "BOYACA": "ANDINA", "CALDAS": "ANDINA", "CUNDINAMARCA": "ANDINA", 
-    "HUILA": "ANDINA", "NORTE DE SANTANDER": "ANDINA", "QUINDIO": "ANDINA", "RISARALDA": "ANDINA", 
-    "SANTANDER": "ANDINA", "TOLIMA": "ANDINA", "BOGOTA": "ANDINA",
-    # Orinoquia
-    "ARAUCA": "ORINOQUIA", "CASANARE": "ORINOQUIA", "META": "ORINOQUIA", "VICHADA": "ORINOQUIA",
-    # Amazonia
-    "AMAZONAS": "AMAZONIA", "CAQUETA": "AMAZONIA", "GUAINIA": "AMAZONIA", "GUAVIARE": "AMAZONIA", 
-    "PUTUMAYO": "AMAZONIA", "VAUPES": "AMAZONIA"
-}
-
-LAT_LON_MAP = {
-    "05": (6.2518, -75.5636),   # Antioquia
-    "08": (10.9685, -74.7813),  # Atlantico
-    "11": (4.6097, -74.0817),   # Bogota
-    "13": (10.3997, -75.4762),  # Bolivar
-    "15": (5.5353, -73.3678),   # Boyaca
-    "17": (5.0689, -75.5174),   # Caldas
-    "18": (1.6144, -75.6062),   # Caqueta
-    "19": (2.4454, -76.6132),   # Cauca
-    "20": (10.4631, -73.2532),  # Cesar
-    "23": (8.7480, -75.8814),   # Cordoba
-    "25": (4.5981, -74.0758),   # Cundinamarca
-    "27": (5.6947, -76.6611),   # Choco
-    "41": (2.9273, -75.2819),   # Huila
-    "44": (11.5440, -72.9069),  # La Guajira
-    "47": (11.2408, -74.1990),  # Magdalena
-    "50": (4.1420, -73.6266),   # Meta
-    "52": (1.2136, -77.2811),   # Nariño
-    "54": (7.8939, -72.5078),   # Norte de Santander
-    "63": (4.5339, -75.6811),   # Quindio
-    "66": (4.8133, -75.6961),   # Risaralda
-    "68": (7.1193, -73.1227),   # Santander
-    "70": (9.3047, -75.3978),   # Sucre
-    "73": (4.4389, -75.2322),   # Tolima
-    "76": (3.4516, -76.5320),   # Valle del Cauca
-    "81": (7.0847, -70.7591),   # Arauca
-    "85": (5.3378, -72.3959),   # Casanare
-    "86": (1.1478, -76.6478),   # Putumayo
-    "88": (12.5847, -81.7006),  # San Andres
-    "91": (-4.2153, -69.9406),  # Amazonas
-    "94": (3.8653, -67.9239),   # Guainia
-    "95": (2.5729, -72.6459),   # Guaviare
-    "97": (1.2503, -70.2339),   # Vaupes
-    "99": (6.1822, -67.4815),   # Vichada
 }
 
 
@@ -257,6 +211,14 @@ def parse_date(col_name):
         F.to_date(raw, "MM/dd/yyyy"),
         F.to_date(raw, "dd/MM/yyyy"),
         F.to_date(raw, "yyyy/MM/dd"),
+    )
+
+
+def add_epi_week_cols(df, date_col: str):
+    """Add epi_year and epi_week based on ISO week for a date column."""
+    return (
+        df.withColumn("epi_year", F.date_format(F.col(date_col), "YYYY").cast("int"))
+        .withColumn("epi_week", F.date_format(F.col(date_col), "ww").cast("int"))
     )
 
 
@@ -580,6 +542,177 @@ def load_vaccination(spark: SparkSession, path: str, use_dane: bool):
     )
 
 
+def load_signals_rss(spark: SparkSession, path: str):
+    base = read_csv_if_exists(spark, path, encoding="utf-8")
+    if base is None:
+        return None
+
+    for col_name in base.columns:
+        base = base.withColumnRenamed(col_name, normalize_column_name(col_name))
+
+    date_col = resolve_col(base.columns, ["week_start_date", "fecha", "week_start"])
+    disease_col = resolve_col(base.columns, ["disease", "enfermedad"])
+    mentions_col = resolve_col(base.columns, ["rss_mentions", "menciones", "mentions"])
+    dept_col = resolve_col(base.columns, ["departamento_code", "depto", "departamento"])
+
+    if not date_col or not disease_col or not mentions_col:
+        print("[skip] rss signals: missing required columns")
+        return None
+
+    rss = (
+        base.withColumn("week_start_date", parse_date(date_col))
+        .withColumn("disease", F.lower(F.trim(F.col(disease_col))))
+        .withColumn("rss_mentions", F.col(mentions_col).cast("double"))
+    )
+
+    if dept_col:
+        rss = rss.withColumn("departamento_code", maybe_dane(F.col(dept_col), 2, True))
+    else:
+        rss = rss.withColumn("departamento_code", F.lit(None).cast("string"))
+
+    rss = add_epi_week_cols(rss, "week_start_date").filter(F.col("week_start_date").isNotNull())
+
+    return (
+        rss.groupBy("epi_year", "epi_week", "week_start_date", "disease", "departamento_code")
+        .agg(F.sum(F.coalesce(F.col("rss_mentions"), F.lit(0.0))).alias("rss_mentions"))
+    )
+
+
+def load_signals_trends(spark: SparkSession, path: str):
+    base = read_csv_if_exists(spark, path, encoding="utf-8")
+    if base is None:
+        return None
+
+    for col_name in base.columns:
+        base = base.withColumnRenamed(col_name, normalize_column_name(col_name))
+
+    date_col = resolve_col(base.columns, ["week_start_date", "fecha", "month_start_date"])
+    disease_col = resolve_col(base.columns, ["disease", "enfermedad"])
+    score_col = resolve_col(base.columns, ["trends_score", "score", "trend_score"])
+    dept_col = resolve_col(base.columns, ["departamento_code", "depto", "departamento"])
+
+    if not date_col or not disease_col or not score_col:
+        print("[skip] trends signals: missing required columns")
+        return None
+
+    trends = (
+        base.withColumn("week_start_date", parse_date(date_col))
+        .withColumn("disease", F.lower(F.trim(F.col(disease_col))))
+        .withColumn("trends_score", F.col(score_col).cast("double"))
+        .filter(F.col("week_start_date").isNotNull())
+    )
+
+    if dept_col:
+        trends = trends.withColumn("departamento_code", maybe_dane(F.col(dept_col), 2, True))
+    else:
+        trends = trends.withColumn("departamento_code", F.lit(None).cast("string"))
+
+    trends = trends.withColumn("month_num", F.month(F.col("week_start_date")))
+    trends = trends.withColumn("epi_year", F.date_format(F.col("week_start_date"), "YYYY").cast("int"))
+
+    return (
+        trends.groupBy("epi_year", "month_num", "disease", "departamento_code")
+        .agg(F.avg(F.col("trends_score")).alias("trends_score"))
+    )
+
+
+def load_rips(spark: SparkSession, path: str):
+    base = read_csv_if_exists(spark, path, encoding="utf-8")
+    if base is None:
+        return None
+
+    for col_name in base.columns:
+        base = base.withColumnRenamed(col_name, normalize_column_name(col_name))
+
+    dept_col = resolve_col(base.columns, ["departamento", "departamento_nombre"])
+    muni_col = resolve_col(base.columns, ["municipio", "municipio_nombre"])
+    year_col = resolve_col(base.columns, ["ano", "anio", "year"])
+    diag_col = resolve_col(base.columns, ["diagnostico", "cie10", "codigo_cie10"])
+    count_col = resolve_col(base.columns, ["numeroatenciones", "numero_atenciones", "atenciones"])
+
+    if not dept_col or not muni_col or not year_col or not diag_col or not count_col:
+        print("[skip] rips: missing required columns")
+        return None
+
+    diag = F.upper(F.trim(F.col(diag_col)))
+    disease = (
+        F.when(diag.startswith("A90") | diag.startswith("A91"), F.lit("dengue"))
+        .when(diag.startswith("A920") | diag.startswith("A92.0"), F.lit("chikungunya"))
+        .when(diag.startswith("A925") | diag.startswith("A92.5"), F.lit("zika"))
+        .when(
+            diag.startswith("B50")
+            | diag.startswith("B51")
+            | diag.startswith("B52")
+            | diag.startswith("B53")
+            | diag.startswith("B54"),
+            F.lit("malaria"),
+        )
+    )
+
+    rips = (
+        base.withColumn("departamento_norm", spark_normalize_text(F.col(dept_col)))
+        .withColumn("municipio_norm", spark_normalize_text(F.col(muni_col)))
+        .withColumn("epi_year", F.col(year_col).cast("int"))
+        .withColumn("disease", disease)
+        .withColumn("rips_visits_total", F.col(count_col).cast("double"))
+        .filter(F.col("disease").isNotNull())
+    )
+
+    return (
+        rips.groupBy("departamento_norm", "municipio_norm", "epi_year", "disease")
+        .agg(F.sum(F.coalesce(F.col("rips_visits_total"), F.lit(0.0))).alias("rips_visits_total"))
+    )
+
+
+def load_mobility_nacional(spark: SparkSession, path: str):
+    base = read_csv_if_exists(spark, path, encoding="utf-8")
+    if base is None:
+        return None
+
+    for col_name in base.columns:
+        base = base.withColumnRenamed(col_name, normalize_column_name(col_name))
+
+    origin_col = resolve_col(base.columns, ["municipio_origen_ruta", "municipio_origen"])
+    dest_col = resolve_col(base.columns, ["municipio_destino_ruta", "municipio_destino"])
+    date_col = resolve_col(base.columns, ["fecha_despacho", "fecha"])
+    passengers_col = resolve_col(base.columns, ["pasajeros", "pasajero"])
+
+    if not origin_col or not dest_col or not date_col or not passengers_col:
+        print("[skip] movilidad nacional: missing required columns")
+        return None
+
+    base = (
+        base.withColumn("fecha", parse_date(date_col))
+        .withColumn("passengers", F.col(passengers_col).cast("double"))
+        .filter(F.col("fecha").isNotNull())
+    )
+
+    base = add_epi_week_cols(base, "fecha")
+    base = base.withColumn("week_start_date", spark_iso_week_start("epi_year", "epi_week"))
+
+    origin_df = base.select(
+        spark_normalize_text(F.col(origin_col)).alias("municipio_norm"),
+        "epi_year",
+        "epi_week",
+        "week_start_date",
+        "passengers",
+    )
+    dest_df = base.select(
+        spark_normalize_text(F.col(dest_col)).alias("municipio_norm"),
+        "epi_year",
+        "epi_week",
+        "week_start_date",
+        "passengers",
+    )
+
+    combined = origin_df.unionByName(dest_df)
+
+    return (
+        combined.groupBy("municipio_norm", "epi_year", "epi_week", "week_start_date")
+        .agg(F.sum(F.coalesce(F.col("passengers"), F.lit(0.0))).alias("mobility_index"))
+    )
+
+
 
 
 
@@ -587,6 +720,10 @@ def enrich_and_write(
     sivigila,
     climate,
     vaccination,
+    signals_rss,
+    signals_trends,
+    rips,
+    mobility,
     version: str,
     features: set[str],
     out_parquet: str,
@@ -616,7 +753,7 @@ def enrich_and_write(
     # Inyectar Latitud y Longitud de forma nativa para evitar fallos de memoria
     lat_map_items = []
     lon_map_items = []
-    for code, (lat, lon) in LAT_LON_MAP.items():
+    for code, (lat, lon) in DEPT_CODE_TO_LATLON.items():
         lat_map_items.extend([F.lit(code), F.lit(lat)])
         lon_map_items.extend([F.lit(code), F.lit(lon)])
     
@@ -655,25 +792,122 @@ def enrich_and_write(
             how="left"
         )
 
+    muni_map = sivigila.select(
+        "departamento_norm",
+        "municipio_norm",
+        "departamento_code",
+        "municipio_code",
+    ).distinct()
+
+    if rips is not None:
+        rips_joined = (
+            rips.join(muni_map, on=["departamento_norm", "municipio_norm"], how="left")
+            .filter(F.col("municipio_code").isNotNull())
+            .groupBy("municipio_code", "epi_year", "disease")
+            .agg(F.sum("rips_visits_total").alias("rips_visits_total"))
+        )
+        core_df = core_df.join(
+            rips_joined,
+            on=["municipio_code", "epi_year", "disease"],
+            how="left",
+        )
+
+    if mobility is not None:
+        mobility_joined = (
+            mobility.join(muni_map.select("municipio_norm", "municipio_code"), on="municipio_norm", how="left")
+            .filter(F.col("municipio_code").isNotNull())
+            .groupBy("municipio_code", "epi_year", "epi_week")
+            .agg(F.sum("mobility_index").alias("mobility_index"))
+        )
+        core_df = core_df.join(
+            mobility_joined,
+            on=["municipio_code", "epi_year", "epi_week"],
+            how="left",
+        )
+
+    if signals_trends is not None:
+        if "departamento_code" in signals_trends.columns:
+            dept_non_null = signals_trends.filter(F.col("departamento_code").isNotNull()).limit(1).count() > 0
+        else:
+            dept_non_null = False
+
+        if dept_non_null:
+            trends_df = signals_trends.filter(F.col("departamento_code").isNotNull())
+            core_df = core_df.join(
+                trends_df,
+                on=["departamento_code", "epi_year", "month_num", "disease"],
+                how="left",
+            )
+        else:
+            trends_df = signals_trends
+            if "departamento_code" in trends_df.columns:
+                trends_df = trends_df.drop("departamento_code")
+            core_df = core_df.join(
+                trends_df,
+                on=["epi_year", "month_num", "disease"],
+                how="left",
+            )
+
+    if signals_rss is not None:
+        if "departamento_code" in signals_rss.columns:
+            dept_non_null = signals_rss.filter(F.col("departamento_code").isNotNull()).limit(1).count() > 0
+        else:
+            dept_non_null = False
+
+        if dept_non_null:
+            rss_df = signals_rss.filter(F.col("departamento_code").isNotNull())
+            core_df = core_df.join(
+                rss_df,
+                on=["departamento_code", "epi_year", "epi_week", "disease"],
+                how="left",
+            )
+        else:
+            rss_df = signals_rss
+            if "departamento_code" in rss_df.columns:
+                rss_df = rss_df.drop("departamento_code")
+            core_df = core_df.join(
+                rss_df,
+                on=["epi_year", "epi_week", "disease"],
+                how="left",
+            )
+
 
 
     # Limpieza de columnas para la tabla de hechos (eliminar nombres, dejar solo códigos foráneos)
     core_df = core_df.drop("departamento_name", "municipio_name", "departamento_norm", "municipio_norm", "region_norm")
 
-    for climate_col in ["precipitation_mm", "temp_avg_c", "temp_min_c", "temp_max_c"]:
+    for climate_col in ["precipitation_mm", "humidity_avg_pct", "temp_avg_c", "temp_min_c", "temp_max_c"]:
         core_df = ensure_column(core_df, climate_col, "double")
     core_df = ensure_column(core_df, "vaccination_coverage_pct", "double")
+    core_df = ensure_column(core_df, "rips_visits_total", "double")
+    core_df = ensure_column(core_df, "mobility_index", "double")
+    core_df = ensure_column(core_df, "trends_score", "double")
+    core_df = ensure_column(core_df, "rss_mentions", "double")
+    core_df = ensure_column(core_df, "signals_score", "double")
 
     # Evitar valores nulos en columnas exógenas: aplicar coalesce con defaults razonables
 
 
     # Coalesce climate columns (si fueron añadidas por el join). Usar 0.0 como fallback.
-    climate_cols = ["precipitation_mm", "temp_avg_c", "temp_min_c", "temp_max_c"]
+    climate_cols = ["precipitation_mm", "humidity_avg_pct", "temp_avg_c", "temp_min_c", "temp_max_c"]
     for c in climate_cols:
         core_df = core_df.withColumn(c, F.coalesce(F.col(c), F.lit(0.0)).cast("double"))
 
     # Coalesce vaccination coverage if present
     core_df = core_df.withColumn("vaccination_coverage_pct", F.coalesce(F.col("vaccination_coverage_pct"), F.lit(0.0)).cast("double"))
+
+    # Coalesce optional signals/exogenous features
+    core_df = core_df.withColumn("rips_visits_total", F.coalesce(F.col("rips_visits_total"), F.lit(0.0)).cast("double"))
+    core_df = core_df.withColumn("mobility_index", F.coalesce(F.col("mobility_index"), F.lit(0.0)).cast("double"))
+    core_df = core_df.withColumn("trends_score", F.coalesce(F.col("trends_score"), F.lit(0.0)).cast("double"))
+    core_df = core_df.withColumn("rss_mentions", F.coalesce(F.col("rss_mentions"), F.lit(0.0)).cast("double"))
+    core_df = core_df.withColumn(
+        "signals_score",
+        (
+            F.col("trends_score") * F.lit(0.7)
+            + F.col("rss_mentions") * F.lit(0.3)
+        ).cast("double"),
+    )
 
 
 
@@ -700,8 +934,14 @@ def enrich_and_write(
             "temp_avg_c",
             "temp_min_c",
             "temp_max_c",
+            "humidity_avg_pct",
             "precipitation_mm",
             "vaccination_coverage_pct",
+            "rips_visits_total",
+            "mobility_index",
+            "trends_score",
+            "rss_mentions",
+            "signals_score",
         )
     )
 
@@ -716,8 +956,14 @@ def enrich_and_write(
             F.avg("temp_avg_c").alias("temp_avg_c"),
             F.avg("temp_min_c").alias("temp_min_c"),
             F.avg("temp_max_c").alias("temp_max_c"),
+            F.avg("humidity_avg_pct").alias("humidity_avg_pct"),
             F.avg("precipitation_mm").alias("precipitation_mm"),
             F.avg("vaccination_coverage_pct").alias("vaccination_coverage_pct"),
+            F.avg("rips_visits_total").alias("rips_visits_total"),
+            F.avg("mobility_index").alias("mobility_index"),
+            F.avg("trends_score").alias("trends_score"),
+            F.avg("rss_mentions").alias("rss_mentions"),
+            F.avg("signals_score").alias("signals_score"),
         )
         .select(
             "epi_year",
@@ -733,8 +979,14 @@ def enrich_and_write(
             "temp_avg_c",
             "temp_min_c",
             "temp_max_c",
+            "humidity_avg_pct",
             "precipitation_mm",
             "vaccination_coverage_pct",
+            "rips_visits_total",
+            "mobility_index",
+            "trends_score",
+            "rss_mentions",
+            "signals_score",
         )
     )
 
@@ -798,11 +1050,16 @@ def main() -> int:
     parser.add_argument(
         "--features",
         default="",
-        help="Comma-separated list: vaccination | all | none",
+        help="Comma-separated list: vaccination, signals, rips, mobility | all | none",
     )
     parser.add_argument("--sivigila", default=str(DEFAULT_SIVIGILA))
     parser.add_argument("--climate", default=str(DEFAULT_CLIMATE))
     parser.add_argument("--vaccination", default=str(DEFAULT_VACCINATION))
+    parser.add_argument("--signals-rss", default=str(DEFAULT_SIGNALS_RSS))
+    parser.add_argument("--signals-trends", default=str(DEFAULT_SIGNALS_TRENDS))
+    parser.add_argument("--rips", default=str(DEFAULT_RIPS))
+    parser.add_argument("--mobility-nacional", default=str(DEFAULT_MOBILITY_NACIONAL))
+    parser.add_argument("--mobility-medellin", default=str(DEFAULT_MOBILITY_MEDELLIN))
     parser.add_argument("--out-parquet")
     parser.add_argument("--out-csv")
     parser.add_argument("--period", default="1991-2020")
@@ -820,15 +1077,41 @@ def main() -> int:
     sivigila = load_sivigila(spark, args.sivigila, use_dane)
     climate = load_climate(spark, args.climate, args.period)
 
+    vaccination = None
+    signals_rss = None
+    signals_trends = None
+    rips = None
+    mobility = None
+
     if "vaccination" in features:
         vaccination = load_vaccination(spark, args.vaccination, use_dane)
         if vaccination is None:
             print("[warn] vaccination feature disabled (missing columns or file)")
 
+    if "signals" in features:
+        signals_rss = load_signals_rss(spark, args.signals_rss)
+        signals_trends = load_signals_trends(spark, args.signals_trends)
+        if signals_rss is None and signals_trends is None:
+            print("[warn] signals feature disabled (missing files)")
+
+    if "rips" in features:
+        rips = load_rips(spark, args.rips)
+        if rips is None:
+            print("[warn] rips feature disabled (missing columns or file)")
+
+    if "mobility" in features:
+        mobility = load_mobility_nacional(spark, args.mobility_nacional)
+        if mobility is None:
+            print("[warn] mobility feature disabled (missing columns or file)")
+
     enrich_and_write(
         sivigila,
         climate,
         vaccination,
+        signals_rss,
+        signals_trends,
+        rips,
+        mobility,
         version,
         features,
         out_parquet,

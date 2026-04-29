@@ -1,14 +1,28 @@
 """Reusable feature engineering and validation helpers for the final ECOS model."""
 
+import sys
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 from xgboost import XGBRegressor
+
+MODELS_ROOT = Path(__file__).resolve().parent
+if str(MODELS_ROOT) not in sys.path:
+    sys.path.insert(0, str(MODELS_ROOT))
 
 from utils import add_lags, evaluate_metrics
 
 
 CLIMATE_COLS = ["temp_avg_c", "temp_min_c", "temp_max_c", "humidity_avg_pct", "precipitation_mm"]
-EXOG_COLS = ["vaccination_coverage_pct", "rips_visits_total", "mobility_index"]
+EXOG_COLS = [
+    "vaccination_coverage_pct",
+    "rips_visits_total",
+    "mobility_index",
+    "trends_score",
+    "rss_mentions",
+    "signals_score",
+]
 
 
 def build_features(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series]:

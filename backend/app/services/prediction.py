@@ -16,7 +16,14 @@ MODEL_PATH_FALLBACKS = [
 ]
 
 CLIMATE_COLS = ["temp_avg_c", "temp_min_c", "temp_max_c", "humidity_avg_pct", "precipitation_mm"]
-EXOG_COLS = ["vaccination_coverage_pct", "rips_visits_total", "mobility_index"]
+EXOG_COLS = [
+    "vaccination_coverage_pct",
+    "rips_visits_total",
+    "mobility_index",
+    "trends_score",
+    "rss_mentions",
+    "signals_score",
+]
 
 
 def load_model():

@@ -34,9 +34,11 @@ def run_step(name: str, cmd: list[str], cwd: Path = REPO_ROOT):
 def main():
     parser = argparse.ArgumentParser(description="ECOS Data Pipeline Orchestrator")
     parser.add_argument("--skip-download", action="store_true", help="Skip data extraction")
+    parser.add_argument("--skip-signals", action="store_true", help="Skip Trends/RSS scraping")
     parser.add_argument("--skip-curation", action="store_true", help="Skip Spark curation")
     parser.add_argument("--skip-validation", action="store_true", help="Skip data validation")
     parser.add_argument("--skip-load", action="store_true", help="Skip Supabase loading")
+    parser.add_argument("--train-model", action="store_true", help="Train final model after curation")
     parser.add_argument("--db-url", default=os.getenv("SUPABASE_DB_URL"), help="Supabase DB URL")
     parser.add_argument("--force-download", action="store_true", help="Force re-download of datasets")
     
@@ -53,6 +55,14 @@ def main():
     else:
         print("\n[skip] Data Extraction")
 
+    # 1b. Signals
+    if not args.skip_signals:
+        cmd = [python_exe, str(SCRIPTS_DIR / "fetch_signals.py")]
+        if not run_step("Signals Scraping", cmd):
+            sys.exit(1)
+    else:
+        print("\n[skip] Signals Scraping")
+
     # 2. Curation
     if not args.skip_curation:
         cmd = [python_exe, str(SCRIPTS_DIR / "curate_weekly_spark.py"), "--features", "vaccination"]
@@ -68,6 +78,12 @@ def main():
             sys.exit(1)
     else:
         print("\n[skip] Data Validation")
+
+    # 3b. Model Training
+    if args.train_model:
+        cmd = [python_exe, str(REPO_ROOT / "models" / "model_final.py")]
+        if not run_step("Model Training", cmd):
+            sys.exit(1)
 
     # 4. Loading
     if not args.skip_load:

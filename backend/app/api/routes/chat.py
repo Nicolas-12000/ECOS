@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException
 from app.schemas.epidemiology import ChatRequest, ChatResponse, ChatSource
 from app.services.epidemiology import VALID_DISEASES, get_history, get_signals, get_last_known_features
 from app.services.prediction import predict_cases
+from app.services import rag
 try:
     from app.services.semantic import available as semantic_available, search as semantic_search
 except Exception:  # pragma: no cover - optional dependency
@@ -142,6 +143,11 @@ def _build_answer(question: str, disease: str | None, municipio_code: str | None
                 f"Para {disease} en el departamento {departamento_code}, las señales más recientes muestran contexto operativo en RIPS, movilidad y vacunación."
             )
             sources.append(ChatSource(title="senales_curadas", excerpt=f"Última señal: RIPS={latest.get('rips_visits_total', 'n/a')}, movilidad={latest.get('mobility_index', 'n/a')}, vacunación={latest.get('vaccination_coverage_pct', 'n/a')}.", source_type="data"))
+            sources.append(ChatSource(
+                title="signals_score",
+                excerpt=f"Trends={latest.get('trends_score', 'n/a')}, RSS={latest.get('rss_mentions', 'n/a')}, score={latest.get('signals_score', 'n/a')}.",
+                source_type="data",
+            ))
     else:
         answer_parts.append(
             "Si quieres una respuesta operativa más exacta, indícame enfermedad y municipio_code o departamento_code."
@@ -182,6 +188,7 @@ def chat(req: ChatRequest):
         departamento_code = departamento_code or inferred_departamento
 
     answer, sources = _build_answer(req.question, disease, municipio_code, departamento_code)
+    answer = rag.generate_answer(req.question, sources, answer)
     logger.info("Chat answered for disease=%s municipio=%s departamento=%s", disease, municipio_code, departamento_code)
     return ChatResponse(
         answer=answer,

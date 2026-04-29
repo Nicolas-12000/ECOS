@@ -39,6 +39,14 @@ Retorna histórico epidemiológico por municipio y enfermedad.
 
 Retorna señales tempranas agregadas por departamento y enfermedad.
 
+Campos disponibles (si existen en el curado):
+- vaccination_coverage_pct
+- rips_visits_total
+- mobility_index
+- trends_score
+- rss_mentions
+- signals_score
+
 ### POST /api/chat
 
 Asistente conversacional con contexto documental y epidemiológico.
