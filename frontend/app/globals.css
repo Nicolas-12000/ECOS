@@ -7,7 +7,7 @@
   --foreground: #1c1a17;
   --foreground-muted: #64605a;
   --border: #d7cabb;
-  --accent: #a85822;
+  --accent: #8C441A;
   --accent-soft: #e8b48d;
   --signal: #16725a;
   --warning: #a86b16;
@@ -37,7 +37,7 @@
 html {
   min-height: 100%;
   background:
-    radial-gradient(circle at top left, rgba(168, 88, 34, 0.18), transparent 34%),
+    radial-gradient(circle at top left, rgba(140, 68, 26, 0.15), transparent 34%),
     radial-gradient(circle at 80% 20%, rgba(22, 114, 90, 0.16), transparent 28%),
     linear-gradient(180deg, #f7f1e8 0%, #efe6d8 100%);
 }

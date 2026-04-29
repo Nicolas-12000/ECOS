@@ -13,12 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ECOS | Alerta temprana nacional",
-  description:
-    "Plataforma nacional de alerta temprana para dengue, chikungunya, zika y malaria.",
-  applicationName: "ECOS",
-  metadataBase: new URL("http://localhost:3000"),
-  themeColor: "#F7F1E8",
+  title: "ECOS | Alerta Temprana Epidemiológica",
+  description: "Plataforma nacional de observación y control de riesgo biológico en Colombia.",
 };
 
 export default function RootLayout({
