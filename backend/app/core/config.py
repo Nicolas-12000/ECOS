@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     db_port: int = 5432
     db_name: str = ""
     db_sslmode: str = ""
+    groq_api_key: str = ""
+    groq_model: str = "llama-3.1-70b-versatile"
 
     def resolved_database_url(self) -> str:
         if self.database_url:

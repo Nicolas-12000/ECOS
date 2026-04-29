@@ -6,10 +6,15 @@ Consolida el entrenamiento operativo del proyecto y genera artefactos finales.
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
 import joblib
 import pandas as pd
+
+MODELS_ROOT = Path(__file__).resolve().parent
+if str(MODELS_ROOT) not in sys.path:
+    sys.path.insert(0, str(MODELS_ROOT))
 
 from model_pipeline import (
     align_columns,
@@ -117,13 +122,18 @@ def main() -> int:
     df_base["week_start_date"] = pd.to_datetime(df_base["week_start_date"], errors="coerce")
     df_base = df_base.dropna(subset=["week_start_date", "epi_year", "epi_week", "cases_total"])
 
-    signals = _load_signals()
-    signals["week_start_date"] = pd.to_datetime(signals["week_start_date"], errors="coerce")
-
-    if {"epi_year", "epi_week", "disease"}.issubset(signals.columns):
-        df = pd.merge(df_base, signals, on=["epi_year", "epi_week", "disease"], how="left")
-    else:
+    if {"trends_score", "rss_mentions", "signals_score"}.issubset(df_base.columns):
         df = df_base.copy()
+    else:
+        try:
+            signals = _load_signals()
+            signals["week_start_date"] = pd.to_datetime(signals["week_start_date"], errors="coerce")
+            if {"epi_year", "epi_week", "disease"}.issubset(signals.columns):
+                df = pd.merge(df_base, signals, on=["epi_year", "epi_week", "disease"], how="left")
+            else:
+                df = df_base.copy()
+        except FileNotFoundError:
+            df = df_base.copy()
 
     df = df.sort_values("week_start_date").reset_index(drop=True)
 

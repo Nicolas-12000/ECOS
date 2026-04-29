@@ -60,6 +60,11 @@ class SignalsItem(BaseModel):
     departamento_code: str
     disease: str
     vaccination_coverage_pct: Optional[float] = None
+    rips_visits_total: Optional[float] = None
+    mobility_index: Optional[float] = None
+    trends_score: Optional[float] = None
+    rss_mentions: Optional[float] = None
+    signals_score: Optional[float] = None
 
 
 class SignalsResponse(BaseModel):
