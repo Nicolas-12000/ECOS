@@ -67,9 +67,8 @@ def get_signals(departamento_code: str, disease: str, limit: int = 52) -> pd.Dat
     mask = (df["departamento_code"] == departamento_code) & (df["disease"] == disease)
     subset = df[mask].copy()
 
-    signal_cols = ["rips_visits_total", "mobility_index", "vaccination_coverage_pct"]
-    agg = {col: "sum" if col != "vaccination_coverage_pct" else "mean"
-           for col in signal_cols if col in subset.columns}
+    signal_cols = ["vaccination_coverage_pct"]
+    agg = {"vaccination_coverage_pct": "mean"}
 
     if not agg:
         return pd.DataFrame()

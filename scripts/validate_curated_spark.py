@@ -21,11 +21,6 @@ REQUIRED_COLUMNS = [
     "event_code",
     "disease",
     "cases_total",
-    "rips_visits_total",
-    "mobility_index",
-    "mobility_hotspot_score",
-    "trends_score",
-    "rss_mentions",
 ]
 
 KEY_COLUMNS = [

@@ -41,7 +41,6 @@ class HistoryItem(BaseModel):
     departamento_code: str
     cases_total: int
     temp_avg_c: Optional[float] = None
-    humidity_avg_pct: Optional[float] = None
     precipitation_mm: Optional[float] = None
 
 
@@ -59,8 +58,6 @@ class SignalsItem(BaseModel):
     week_start_date: date
     departamento_code: str
     disease: str
-    rips_visits_total: Optional[int] = None
-    mobility_index: Optional[float] = None
     vaccination_coverage_pct: Optional[float] = None
 
 

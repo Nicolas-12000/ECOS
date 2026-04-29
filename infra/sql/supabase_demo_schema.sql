@@ -19,14 +19,8 @@ create table if not exists public.curated_weekly (
     temp_avg_c double precision not null default 0,
     temp_min_c double precision not null default 0,
     temp_max_c double precision not null default 0,
-    humidity_avg_pct double precision not null default 0,
     precipitation_mm double precision not null default 0,
     vaccination_coverage_pct double precision not null default 0,
-    rips_visits_total bigint not null default 0,
-    mobility_index double precision not null default 0,
-    mobility_hotspot_score double precision,
-    trends_score double precision not null default 0,
-    rss_mentions integer not null default 0,
     inserted_at timestamptz not null default now(),
     primary key (epi_year, epi_week, municipio_code, disease)
 );

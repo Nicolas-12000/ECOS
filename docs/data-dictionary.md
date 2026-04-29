@@ -19,11 +19,8 @@ Este documento describe con detalle la estructura de datos que resulta de la fas
 | **temp_avg_c** | `FLOAT` | Clima IDEAM | Temperatura media histórica reportada en Celsius, asociada al municipio y mes correspondiente a la semana. |
 | **temp_min_c** | `FLOAT` | Clima IDEAM | Temperatura mínima histórica en Celsius. |
 | **temp_max_c** | `FLOAT` | Clima IDEAM | Temperatura máxima histórica en Celsius. |
-| **humidity_avg_pct**| `FLOAT` | Clima IDEAM | Porcentaje promedio de humedad relativa. |
 | **precipitation_mm**| `FLOAT` | Clima IDEAM | Milímetros cúbicos promedio de lluvia/precipitación. |
 | **vaccination_coverage_pct** | `FLOAT` | Minsalud | Cobertura anual reportada a nivel departamental, en porcentaje (0-100%). |
-| **rips_visits_total** | `BIGINT` | RIPS (MinSalud) | Cantidad total de atenciones recibidas en la red de clínicas que reportaron códigos CIE-10 asociados a la enfermedad en este territorio y año. |
-| **mobility_index** | `FLOAT` | Terminales (DATOS) | Conteo total de volumen de pasajeros ingresando y saliendo del municipio durante la semana. |
 
 ## Transformaciones Base (Full HD - Nativo)
 
