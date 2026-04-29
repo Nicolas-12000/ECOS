@@ -41,6 +41,7 @@ class HistoryItem(BaseModel):
     departamento_code: str
     cases_total: int
     temp_avg_c: Optional[float] = None
+    humidity_avg_pct: Optional[float] = None
     precipitation_mm: Optional[float] = None
 
 
