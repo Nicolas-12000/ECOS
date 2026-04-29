@@ -151,7 +151,7 @@ def normalize_column_name(value: str) -> str:
 def spark_normalize_text(col):
     """Native PySpark string normalization (no Python UDF)"""
     # Lista extendida de acentos y caracteres especiales comunes en datasets de Colombia
-    accents = "ÁÉÍÓÚáéíóúÀÈÌÒÙàèìòùÄËÏÖÜäëïöüÂÊÎÔÛâêôûÑñ"
+    accents = "ÁÉÍÓÚáéíóúÀÈÌÒÙàèìòùÄËÏÖÜäëïöüÂÊÎÔÛâêîôûÑñ"
     replacements = "AEIOUaeiouAEIOUaeiouAEIOUaeiouAEIOUaeiouNn"
     c = F.translate(col, accents, replacements)
     c = F.regexp_replace(c, r"\.", " ")
@@ -165,6 +165,7 @@ def spark_normalize_text(col):
          .when(c.isin("BOGOTA DC", "BOGOTA D C", "SANTAFE DE BOGOTA"), F.lit("BOGOTA")) \
          .when(c.contains("SAN ANDRES"), F.lit("ARCHIPIELAGO DE SAN ANDRES PROVIDENCIA Y SANTA CATALINA")) \
          .when(c == "NORTE SANTANDER", F.lit("NORTE DE SANTANDER")) \
+         .when(c == "GUAJIRA", F.lit("LA GUAJIRA")) \
          .otherwise(c)
     return c
 
@@ -381,6 +382,7 @@ def load_sivigila(spark: SparkSession, path: str, use_dane: bool):
         & (F.col("epi_week").between(1, 53))
         & (F.col("municipio_code").isNotNull())
         & (F.length(F.col("municipio_code")) > 0)
+        & (~F.upper(F.col("departamento_name")).isin("EXTERIOR", "PROCEDENCIA DESCONOCIDA"))
     )
 
     if use_dane:
@@ -606,7 +608,9 @@ def enrich_and_write(
     sivigila = sivigila.withColumn("region_norm", region_map_col[F.col("departamento_norm")])
     
     dim_departamentos = sivigila.select(
-        "departamento_code", "departamento_name", "region_norm"
+        "departamento_code", 
+        F.col("departamento_norm").alias("departamento_name"), 
+        "region_norm"
     ).distinct().filter(F.col("departamento_code").isNotNull())
     
     # Inyectar Latitud y Longitud de forma nativa para evitar fallos de memoria
