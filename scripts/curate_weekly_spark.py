@@ -24,8 +24,8 @@ DEFAULT_VERSION = "full"
 DEFAULT_SIVIGILA = REPO_ROOT / "data/raw/sivigila_4hyg-wa9d.csv"
 DEFAULT_CLIMATE = REPO_ROOT / "data/raw/clima_normales_ideam_nsz2-kzcq.csv"
 DEFAULT_VACCINATION = REPO_ROOT / "data/raw/vacunacion_6i25-2hdt.csv"
-DEFAULT_FRESH_PARQUET = REPO_ROOT / "data/processed/curated_weekly_fresh_parquet"
-DEFAULT_FRESH_CSV = REPO_ROOT / "data/processed/curated_weekly_fresh_csv"
+DEFAULT_PARQUET = REPO_ROOT / "data/processed/curated_weekly_parquet"
+DEFAULT_CSV = REPO_ROOT / "data/processed/curated_weekly_csv"
 
 FEATURES_ALL = {"vaccination"}
 
@@ -808,8 +808,8 @@ def main() -> int:
     features = resolve_features(args.features)
     use_dane = version != "v0"
 
-    out_parquet = args.out_parquet or str(DEFAULT_FRESH_PARQUET)
-    out_csv = args.out_csv or str(DEFAULT_FRESH_CSV)
+    out_parquet = args.out_parquet or str(DEFAULT_PARQUET)
+    out_csv = args.out_csv or str(DEFAULT_CSV)
 
     spark = build_spark(f"curated_weekly_{version}")
 
