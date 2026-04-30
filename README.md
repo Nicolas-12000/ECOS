@@ -20,63 +20,52 @@ Plataforma nacional de alerta temprana para enfermedades de alto impacto en Colo
 - Python 3.11+
 - PostgreSQL 14+ (local)
 
-## Inicio rapido
+## Inicio rápido
 
-### Frontend
+### 1. Configuración de Variables de Entorno
+Copia el archivo de ejemplo y configura tu `GROQ_API_KEY` para que el asistente de IA funcione correctamente.
+```bash
+cp .env.example .env
+```
 
+### 2. Backend (FastAPI)
+El backend procesa los modelos de ML y gestiona el motor RAG.
+```bash
+# Crear entorno virtual
+python -m venv .venv
+# Activar (Windows)
+.venv\Scripts\activate
+# Activar (Unix/macOS)
+source .venv/bin/activate
+
+# Instalar dependencias
+pip install -r requirements.txt
+
+# Iniciar servidor
+cd backend
+uvicorn app.main:app --reload
+```
+API disponible en: `http://localhost:8000` | Docs: `http://localhost:8000/docs`
+
+### 3. Frontend (Next.js 15)
+La interfaz moderna con dashboard interactivo y chat.
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
+Dashboard disponible en: `http://localhost:3000`
 
-### Backend
-
+### 4. Pipeline de Datos y Spark (Opcional)
+Si necesitas regenerar los datos procesados desde cero:
 ```bash
-cd backend
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-```
-
-Nota: cada componente tiene su propio requirements.txt (por ejemplo, backend/ y models/).
-Si prefieres instalar desde la raiz:
-
-```bash
-python -m venv .venv-backend
-source .venv-backend/bin/activate
-pip install -r backend/requirements.txt
-```
-
-## Demo local (hackaton)
-
-- Todo corre en local; no requiere servicios pagos.
-- Backend: http://localhost:8000
-- Frontend: http://localhost:3000
-- Base de datos: PostgreSQL local (localhost:5432)
-- Dashboard BI: PBIX local usando data/processed.
-
-## Datos y pipeline (Spark)
-
-### 1) Descargar datasets
-
-```bash
+# Descargar datasets crudos
 python scripts/download_datasets.py
-```
 
-Notas:
-- Los archivos descargados quedan en data/raw/.
-
-### 2) Levantar Spark con Docker Compose
-
-```bash
+# Levantar infraestructura de Spark
 docker compose -f infra/docker-compose.spark.yml up -d
-```
 
-### 3) Generar el curado semanal (unificado)
-
-```bash
+# Ejecutar curaduría de datos
 docker compose -f infra/docker-compose.spark.yml exec spark-master \
 	/opt/spark/bin/spark-submit /opt/spark/work/scripts/curate_weekly_spark.py \
 	--version full \
@@ -86,6 +75,12 @@ docker compose -f infra/docker-compose.spark.yml exec spark-master \
 	--out-parquet /opt/spark/work/data/processed/curated_weekly_parquet \
 	--out-csv /opt/spark/work/data/processed/curated_weekly_csv
 ```
+
+## Características Principales
+- **Dashboard en Tiempo Real**: Visualización de señales climáticas y epidemiológicas.
+- **Predicciones con ML**: Motor de inferencia para dengue, malaria, zika y chikungunya.
+- **Asistente ECOS AI**: Chat interactivo con RAG basado en protocolos nacionales.
+- **Integración Power BI**: Visualización avanzada integrada directamente en la web.
 
 ### 4) (Opcional) Validar el curado
 
@@ -106,11 +101,10 @@ Nota: data/processed esta en .gitignore.
 Para la demo local no se requieren servicios externos. Si usas base de datos local, configura `DATABASE_URL`:
 
 ```bash
-cd backend
 cp .env.example .env
 ```
 
-Variables opcionales: ver backend/.env.example
+Variables opcionales: ver `.env.example`.
 
 ## Licencia
 

@@ -1,7 +1,7 @@
-# Dataset curado (schema v0)
+# Dataset curado final
 
 ## Objetivo
-Definir la estructura del dataset curado semanal a nivel municipal y enfermedad. Este dataset es la base para entrenamiento, prediccion y visualizacion en Power BI. La definicion incluye todas las fuentes planteadas en el proyecto y como se integran.
+Definir la estructura del dataset curado semanal a nivel municipal y enfermedad. Este dataset es la base para entrenamiento, prediccion y consumo analitico de la plataforma. La definicion incluye todas las fuentes planteadas en el proyecto y como se integran.
 
 ## Fuentes consideradas
 - SIVIGILA historico (4hyg-wa9d) -> base de casos por semana y territorio.
@@ -65,8 +65,8 @@ Nota: nsz2-kzcq son normales climatologicas (1961-2020), no series diarias/seman
 - Para clima: permitir nulos si no hay estacion cercana.
 
 ## Nombre de archivo recomendado
-- data/processed/curated_weekly.parquet
-- data/processed/curated_weekly.csv (opcional para inspeccion)
+- data/processed/curated_weekly_parquet
+- data/processed/curated_weekly_csv (opcional para inspeccion)
 
 ## Tablas auxiliares (para integracion)
 
@@ -94,7 +94,7 @@ Uso: filtrar por par_metro (precipitacion, temperatura max/min/media, humedad) y
 - vaccine_name (string)
 - vaccination_coverage_pct (float)
 
-Uso: se agrega como feature anual por departamento. Se replica por semana al unir con curated_weekly.
+ Uso: se agrega como feature anual por departamento. Se replica por semana al unir con curated_weekly canonical.
 
 ### RIPS vista agregada (5e6c-5p2c)
 - Departamento (string)

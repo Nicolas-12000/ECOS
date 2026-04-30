@@ -59,12 +59,38 @@ class SignalsItem(BaseModel):
     week_start_date: date
     departamento_code: str
     disease: str
-    rips_visits_total: Optional[int] = None
-    mobility_index: Optional[float] = None
     vaccination_coverage_pct: Optional[float] = None
+    rips_visits_total: Optional[float] = None
+    mobility_index: Optional[float] = None
+    trends_score: Optional[float] = None
+    rss_mentions: Optional[float] = None
+    signals_score: Optional[float] = None
 
 
 class SignalsResponse(BaseModel):
     departamento_code: str
     disease: str
     records: list[SignalsItem]
+
+
+# ─── /chat ────────────────────────────────────────────────────────────────
+
+class ChatRequest(BaseModel):
+    question: str
+    disease: Optional[str] = None
+    municipio_code: Optional[str] = None
+    departamento_code: Optional[str] = None
+
+
+class ChatSource(BaseModel):
+    title: str
+    excerpt: str
+    source_type: str
+
+
+class ChatResponse(BaseModel):
+    answer: str
+    sources: list[ChatSource]
+    disease: Optional[str] = None
+    municipio_code: Optional[str] = None
+    departamento_code: Optional[str] = None
