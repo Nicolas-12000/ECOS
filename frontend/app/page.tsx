@@ -19,7 +19,8 @@ import {
   Activity, 
   Wind, 
   Search,
-  LayoutDashboard
+  LayoutDashboard,
+  Shield
 } from "lucide-react"
 
 export default function Home() {
@@ -29,8 +30,8 @@ export default function Home() {
   React.useEffect(() => {
     const timer = setTimeout(() => setIsLoaded(true), 1000)
     
-    // Fetch real history for a default location (Medellín - 05001) to show real environmental data
-    getHistory('05001', 'dengue', 1).then(data => {
+    // Fetch real history for a default location (Cali mock - 76760) to show real environmental data
+    getHistory('76760', 'dengue', 1).then(data => {
       if (data && data.records && data.records.length > 0) {
         setLatestData(data.records[0])
       }
@@ -78,79 +79,68 @@ export default function Home() {
             </div>
             
             <div className="hidden md:flex items-center gap-6">
-              {['Dashboard', 'Señales', 'Predicciones', 'Reportes'].map((item) => (
+              {[
+                { name: 'Dashboard', path: '#dashboard' },
+                { name: 'Señales', path: '#senales' },
+                { name: 'Predicciones', path: '#predicciones' },
+                { name: 'Reportes', path: '#reportes' }
+              ].map((item) => (
                 <a 
-                  key={item} 
-                  href="#" 
+                  key={item.name} 
+                  href={item.path} 
                   className="text-sm font-medium text-foreground-muted hover:text-foreground transition-colors"
                 >
-                  {item}
+                  {item.name}
                 </a>
               ))}
             </div>
           </div>
           
-          <div className="flex items-center gap-4">
-            <Button variant="outline" size="sm">
-              <History className="mr-2 h-4 w-4" />
-              Historial
-            </Button>
-            <Button size="sm">
-              <LayoutDashboard className="mr-2 h-4 w-4" />
-              Admin
-            </Button>
-          </div>
+
         </nav>
 
         {/* Hero Section */}
         <DashboardHero />
 
         {/* Real-time Signals Grid */}
-        <section className="mt-12">
+        <section id="senales" className="mt-12 scroll-mt-24">
           <div className="flex items-center justify-between mb-8">
             <div>
               <h2 className="text-2xl font-bold tracking-tight text-foreground">Señales Ambientales</h2>
               <p className="text-sm text-foreground-muted mt-1">Factores determinantes de riesgo biológico</p>
             </div>
-            <Button variant="ghost" size="sm" className="text-accent">
+            <Button variant="ghost" size="sm" className="text-accent" onClick={() => window.location.href = "#dashboard"}>
               Ver todas <ArrowUpRight className="ml-1 h-4 w-4" />
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <SignalIndicator 
               label="Precipitación"
-              value={latestData?.precipitation_mm !== null && latestData?.precipitation_mm !== undefined ? `${latestData.precipitation_mm}mm` : "120mm"}
+              value={latestData?.precipitation_mm ? `${latestData.precipitation_mm.toFixed(0)}mm` : "120mm"}
               trend={latestData?.precipitation_mm > 100 ? "up" : "stable"}
               status={latestData?.precipitation_mm > 150 ? "danger" : latestData?.precipitation_mm > 80 ? "warning" : "signal"}
-              description={latestData?.precipitation_mm !== null ? "Dato real de estación local" : "Aumento significativo en la región pacífica"}
+              description={latestData?.precipitation_mm ? "Dato real de estación local" : "Aumento significativo en la región pacífica"}
             />
             <SignalIndicator 
               label="Temperatura"
-              value={latestData?.temp_avg_c !== null && latestData?.temp_avg_c !== undefined ? `${latestData.temp_avg_c}°C` : "28.5°C"}
+              value={latestData?.temp_avg_c ? `${latestData.temp_avg_c.toFixed(1)}°C` : "28.5°C"}
               trend="stable"
               status="signal"
-              description={latestData?.temp_avg_c !== null ? "Promedio nacional actual" : "Dentro de rangos normales históricos"}
+              description={latestData?.temp_avg_c ? "Promedio nacional actual" : "Promedio histórico estacional"}
             />
             <SignalIndicator 
-              label="Humedad Relativa"
-              value={latestData?.humidity_avg_pct !== null && latestData?.humidity_avg_pct !== undefined ? `${latestData.humidity_avg_pct}%` : "82%"}
-              trend="up"
-              status="warning"
-              description="Condiciones óptimas para vector Aedes"
-            />
-            <SignalIndicator 
-              label="Vigilancia RIPS"
-              value="+15.2%"
-              trend="up"
+              label="Casos de Dengue (Semana)"
+              value={latestData?.cases_total !== null && latestData?.cases_total !== undefined ? `${latestData.cases_total}` : "---"}
+              trend="stable"
               status="danger"
-              description="Alerta por incremento de consultas febriles"
+              description="Reporte semanal epidemiológico"
             />
           </div>
         </section>
 
         {/* Power BI Integration */}
-        <section className="mt-16">
+        <section id="dashboard" className="mt-16 scroll-mt-24">
           <div className="mb-8">
             <h2 className="text-2xl font-bold tracking-tight text-foreground">Dashboard Operativo</h2>
             <p className="text-sm text-foreground-muted mt-1">Exploración profunda de datos y tendencias nacionales</p>
@@ -159,87 +149,65 @@ export default function Home() {
         </section>
 
         {/* Insights & Analysis Section */}
-        <div className="mt-16 grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Analysis Card */}
-          <Card className="lg:col-span-2 overflow-hidden flex flex-col">
-            <CardHeader className="flex flex-row items-center justify-between border-b border-border/50 pb-4">
-              <div>
-                <CardTitle>Análisis de Tendencias</CardTitle>
-                <p className="text-xs text-foreground-muted mt-1">Comparativa semanal por patología</p>
-              </div>
-              <div className="flex gap-2">
-                <Badge variant="outline" className="lowercase">Semana {latestData?.epi_week || '17'}</Badge>
-                <Badge variant="signal" className="lowercase">Estable</Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="flex-1 pt-8 min-h-[350px] flex items-center justify-center bg-background-soft/30">
-              <div className="flex flex-col items-center text-foreground-muted gap-4">
-                <BarChart3 size={48} className="opacity-20" />
-                <p className="text-sm font-medium">Visualización de datos en tiempo real</p>
-                <div className="flex items-end gap-1 h-32">
-                  {[40, 70, 45, 90, 65, 80, 50, 60, 30, 85].map((h, i) => (
-                    <motion.div
-                      key={i}
-                      initial={{ height: 0 }}
-                      animate={{ height: h }}
-                      transition={{ delay: i * 0.1, duration: 0.5 }}
-                      className="w-6 bg-accent/40 rounded-t-sm hover:bg-accent/60 transition-colors cursor-help"
-                    />
-                  ))}
+        <div id="predicciones" className="mt-16 scroll-mt-24">
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold tracking-tight text-foreground">Situación Epidemiológica</h2>
+            <p className="text-sm text-foreground-muted mt-1">Resumen operativo basado en los últimos reportes nacionales</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card className="bg-surface border-border hover:shadow-md transition-shadow">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Activity className="h-5 w-5 text-danger" />
+                  Incidencia Actual
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-4xl font-black text-foreground mb-2">
+                  {latestData?.cases_total ? latestData.cases_total : "---"}
                 </div>
-                <div className="flex gap-4 mt-4 text-[10px] font-bold uppercase tracking-widest opacity-40">
-                  <div className="flex items-center gap-1"><div className="h-2 w-2 rounded-full bg-accent" /> Casos</div>
-                  <div className="flex items-center gap-1"><div className="h-2 w-2 rounded-full bg-signal" /> Clima</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                <p className="text-sm text-foreground-muted">
+                  Casos de Dengue confirmados en la última semana epidemiológica monitoreada. Tendencia bajo observación constante.
+                </p>
+              </CardContent>
+            </Card>
 
-          {/* Real Prediction Panel */}
-          <PredictionPanel />
+            <Card className="bg-surface border-border hover:shadow-md transition-shadow">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Map className="h-5 w-5 text-accent" />
+                  Estado de Alerta
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-foreground mb-2 text-warning">
+                  ALERTA NARANJA
+                </div>
+                <p className="text-sm text-foreground-muted">
+                  Múltiples municipios superan el canal endémico histórico. Se requiere atención prioritaria en control vectorial.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-surface border-border hover:shadow-md transition-shadow">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Shield className="h-5 w-5 text-primary" />
+                  Recomendación INS
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-lg font-bold text-foreground mb-2">
+                  Activación de Protocolos
+                </div>
+                <p className="text-sm text-foreground-muted">
+                  Fortalecer la vigilancia pasiva y activa en IPS. Implementar fumigación perimetral en focos primarios identificados.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
         </div>
-
-        {/* Quick Actions / Feature Cards */}
-        <section className="mt-16 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
-          {[
-            { 
-              title: "Predicción", 
-              desc: "Horizonte de 1 a 4 semanas por municipio.",
-              icon: Activity,
-              color: "text-blue-500"
-            },
-            { 
-              title: "Clima", 
-              desc: "Impacto de El Niño y variabilidad local.",
-              icon: Wind,
-              color: "text-amber-500"
-            },
-            { 
-              title: "RAG Docs", 
-              desc: "Consulta protocolos y guías oficiales INS.",
-              icon: Search,
-              color: "text-emerald-500"
-            },
-            { 
-              title: "Exportar", 
-              desc: "Reportes automatizados para secretarías.",
-              icon: History,
-              color: "text-purple-500"
-            },
-          ].map((item, i) => (
-            <motion.div
-              key={i}
-              whileHover={{ y: -5 }}
-              className="p-6 rounded-3xl bg-surface border border-border shadow-sm hover:shadow-xl transition-all"
-            >
-              <div className={`p-3 rounded-2xl bg-background-soft w-fit mb-4 ${item.color}`}>
-                <item.icon size={24} />
-              </div>
-              <h3 className="font-bold text-foreground">{item.title}</h3>
-              <p className="text-sm text-foreground-muted mt-2 leading-relaxed">{item.desc}</p>
-            </motion.div>
-          ))}
-        </section>
 
         {/* Footer */}
         <footer className="mt-24 pt-12 border-t border-border flex flex-col md:flex-row items-center justify-between gap-6 pb-12">

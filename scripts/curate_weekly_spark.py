@@ -744,11 +744,14 @@ def enrich_and_write(
     region_map_col = F.create_map(*region_items)
     sivigila = sivigila.withColumn("region_norm", region_map_col[F.col("departamento_norm")])
     
-    dim_departamentos = sivigila.select(
-        "departamento_code", 
-        F.col("departamento_norm").alias("departamento_name"), 
-        "region_norm"
-    ).distinct().filter(F.col("departamento_code").isNotNull())
+    dim_departamentos = (
+        sivigila.filter(F.col("departamento_code").isNotNull())
+        .groupBy("departamento_code")
+        .agg(
+            F.first(F.col("departamento_norm"), ignorenulls=True).alias("departamento_name"),
+            F.first("region_norm", ignorenulls=True).alias("region_norm")
+        )
+    )
     
     # Inyectar Latitud y Longitud de forma nativa para evitar fallos de memoria
     lat_map_items = []
@@ -763,9 +766,14 @@ def enrich_and_write(
     dim_departamentos = dim_departamentos.withColumn("latitude", lat_map_col[F.col("departamento_code")])
     dim_departamentos = dim_departamentos.withColumn("longitude", lon_map_col[F.col("departamento_code")])
     
-    dim_municipios = sivigila.select(
-        "municipio_code", "municipio_name", "departamento_code"
-    ).distinct().filter(F.col("municipio_code").isNotNull())
+    dim_municipios = (
+        sivigila.filter(F.col("municipio_code").isNotNull())
+        .groupBy("municipio_code")
+        .agg(
+            F.first("municipio_name", ignorenulls=True).alias("municipio_name"),
+            F.first("departamento_code", ignorenulls=True).alias("departamento_code")
+        )
+    )
 
 
     # --- 2. FACT: CORE WEEKLY (SIVIGILA + Vaccination + Climate) ---

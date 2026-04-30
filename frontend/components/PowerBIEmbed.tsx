@@ -19,7 +19,7 @@ export function PowerBIEmbed({
   const [hasError, setHasError] = React.useState(false)
 
   // Default fallback if no URL is provided (for demo purposes)
-  const finalUrl = embedUrl || "https://app.powerbi.com/view?r=eyJrIjoiZDI5N2ZlMzAtZjc5Mi00ZjhiLTk5N2EtZjVlZDM0ZDRlZDY5IiwidCI6ImE4NThjNjZmLTljNjEtNGVjOC1hZGRiLTM4YmI1ZDNmZDY0OSIsImMiOjR9"
+  const finalUrl = embedUrl || "https://app.powerbi.com/view?r=eyJrIjoiNGJiYzE4YmMtM2EzNy00MDc2LTkwZDctNmM0MzE3Y2U0MTk4IiwidCI6IjhkMzY4MzZlLTZiNzUtNGRlNi1iYWI5LTVmNGIxNzc1NDI3ZiIsImMiOjR9"
 
   return (
     <Card className="w-full overflow-hidden border-none shadow-xl bg-surface/50 backdrop-blur-md">
