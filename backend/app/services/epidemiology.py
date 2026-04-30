@@ -69,8 +69,6 @@ def get_signals(departamento_code: str, disease: str, limit: int = 52) -> pd.Dat
 
     signal_cols = {
         "vaccination_coverage_pct": "mean",
-        "rips_visits_total": "sum",
-        "mobility_index": "sum",
         "trends_score": "mean",
         "rss_mentions": "sum",
         "signals_score": "mean",

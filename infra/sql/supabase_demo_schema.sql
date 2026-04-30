@@ -3,31 +3,89 @@
 
 create extension if not exists pgcrypto;
 
-create table if not exists public.curated_weekly (
+--------------------------------------------------------------------------------
+-- 1. DIMENSION TABLES
+--------------------------------------------------------------------------------
+
+create table if not exists public.dim_departamentos (
+    departamento_code text primary key,
+    departamento_name text not null,
+    region_norm text,
+    latitude double precision,
+    longitude double precision
+);
+
+create table if not exists public.dim_municipios (
+    municipio_code text primary key,
+    municipio_name text not null,
+    departamento_code text not null references public.dim_departamentos(departamento_code)
+);
+
+create index if not exists idx_dim_municipios_depto on public.dim_municipios (departamento_code);
+
+--------------------------------------------------------------------------------
+-- 2. FACT TABLES
+--------------------------------------------------------------------------------
+
+create table if not exists public.fact_avg_cases_annual (
+    departamento_code text not null references public.dim_departamentos(departamento_code),
+    epi_year integer not null,
+    disease text not null,
+    avg_weekly_cases double precision,
+    primary key (departamento_code, epi_year, disease)
+);
+
+create table if not exists public.fact_climate_monthly (
+    month_num integer not null,
+    precipitation_mm double precision,
+    humidity_avg_pct double precision,
+    temp_min_c double precision,
+    temp_avg_c double precision,
+    temp_max_c double precision,
+    departamento_code text not null references public.dim_departamentos(departamento_code),
+    primary key (departamento_code, month_num)
+);
+
+create table if not exists public.fact_vaccination_annual (
+    departamento_code text not null references public.dim_departamentos(departamento_code),
+    epi_year integer not null,
+    vaccination_coverage_pct double precision,
+    primary key (departamento_code, epi_year)
+);
+
+create table if not exists public.fact_core_weekly (
     epi_year integer not null,
     epi_week integer not null,
     week_start_date date not null,
     week_end_date date,
-    departamento_code text not null,
-    departamento_name text,
-    municipio_code text not null,
-    municipio_name text,
+    month_num integer,
+    departamento_code text not null references public.dim_departamentos(departamento_code),
+    municipio_code text not null references public.dim_municipios(municipio_code),
     event_code integer,
-    event_name text,
     disease text not null,
     cases_total integer not null default 0,
-    temp_avg_c double precision not null default 0,
-    temp_min_c double precision not null default 0,
-    temp_max_c double precision not null default 0,
-    precipitation_mm double precision not null default 0,
-    vaccination_coverage_pct double precision not null default 0,
+    temp_avg_c double precision,
+    temp_min_c double precision,
+    temp_max_c double precision,
+    humidity_avg_pct double precision,
+    precipitation_mm double precision,
+    vaccination_coverage_pct double precision,
+    rips_visits_total double precision,
+    mobility_index double precision,
+    trends_score double precision,
+    rss_mentions double precision,
+    signals_score double precision,
     inserted_at timestamptz not null default now(),
     primary key (epi_year, epi_week, municipio_code, disease)
 );
 
-create index if not exists idx_curated_weekly_date on public.curated_weekly (week_start_date);
-create index if not exists idx_curated_weekly_depto on public.curated_weekly (departamento_code);
-create index if not exists idx_curated_weekly_disease on public.curated_weekly (disease);
+create index if not exists idx_fact_core_weekly_date on public.fact_core_weekly (week_start_date);
+create index if not exists idx_fact_core_weekly_depto on public.fact_core_weekly (departamento_code);
+create index if not exists idx_fact_core_weekly_disease on public.fact_core_weekly (disease);
+
+--------------------------------------------------------------------------------
+-- 3. PREDICTIONS TABLE
+--------------------------------------------------------------------------------
 
 create table if not exists public.predictions_demo (
     id uuid primary key default gen_random_uuid(),
@@ -47,29 +105,39 @@ create table if not exists public.predictions_demo (
 create index if not exists idx_predictions_demo_lookup
     on public.predictions_demo (disease, departamento_code, municipio_code, epi_year, epi_week);
 
+--------------------------------------------------------------------------------
+-- 4. ROW LEVEL SECURITY (RLS)
+--------------------------------------------------------------------------------
+
 -- Demo mode: allow read for anon if using public dashboard.
-alter table public.curated_weekly enable row level security;
+alter table public.dim_departamentos enable row level security;
+alter table public.dim_municipios enable row level security;
+alter table public.fact_avg_cases_annual enable row level security;
+alter table public.fact_climate_monthly enable row level security;
+alter table public.fact_vaccination_annual enable row level security;
+alter table public.fact_core_weekly enable row level security;
 alter table public.predictions_demo enable row level security;
 
 do $$
+declare
+    t text;
 begin
-    if not exists (
-        select 1 from pg_policies
-        where schemaname = 'public' and tablename = 'curated_weekly' and policyname = 'public_read_curated_weekly'
-    ) then
-        create policy public_read_curated_weekly
-        on public.curated_weekly
-        for select
-        using (true);
-    end if;
-
-    if not exists (
-        select 1 from pg_policies
-        where schemaname = 'public' and tablename = 'predictions_demo' and policyname = 'public_read_predictions_demo'
-    ) then
-        create policy public_read_predictions_demo
-        on public.predictions_demo
-        for select
-        using (true);
-    end if;
+    for t in
+        select unnest(array[
+            'dim_departamentos',
+            'dim_municipios',
+            'fact_avg_cases_annual',
+            'fact_climate_monthly',
+            'fact_vaccination_annual',
+            'fact_core_weekly',
+            'predictions_demo'
+        ])
+    loop
+        if not exists (
+            select 1 from pg_policies
+            where schemaname = 'public' and tablename = t and policyname = 'public_read_' || t
+        ) then
+            execute format('create policy public_read_%I on public.%I for select using (true)', t, t);
+        end if;
+    end loop;
 end $$;

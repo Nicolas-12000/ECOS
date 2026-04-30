@@ -43,7 +43,6 @@ def history(
             departamento_code=str(row.get("departamento_code", "")),
             cases_total=int(row["cases_total"]),
             temp_avg_c=FLOAT_OR_NONE(row.get("temp_avg_c")),
-            humidity_avg_pct=FLOAT_OR_NONE(row.get("humidity_avg_pct")),
             precipitation_mm=FLOAT_OR_NONE(row.get("precipitation_mm")),
         )
         for _, row in df.iterrows()

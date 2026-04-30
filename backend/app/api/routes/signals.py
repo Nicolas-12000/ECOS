@@ -40,8 +40,6 @@ def signals(
             departamento_code=str(row.get("departamento_code", "")),
             disease=row["disease"],
             vaccination_coverage_pct=FLOAT_OR_NONE(row.get("vaccination_coverage_pct")),
-            rips_visits_total=FLOAT_OR_NONE(row.get("rips_visits_total")),
-            mobility_index=FLOAT_OR_NONE(row.get("mobility_index")),
             trends_score=FLOAT_OR_NONE(row.get("trends_score")),
             rss_mentions=FLOAT_OR_NONE(row.get("rss_mentions")),
             signals_score=FLOAT_OR_NONE(row.get("signals_score")),
