@@ -32,17 +32,24 @@ def health():
     else:
         payload["database"] = "not_configured"
 
-    # Check curated data
+    # Check which data source is active
+    try:
+        from app.services.epidemiology import get_data_source
+        payload["data_source"] = get_data_source()
+    except Exception:
+        payload["data_source"] = "unknown"
+
+    # Check curated data (local files)
     data_paths = [
         REPO_ROOT / "data/processed/curated_weekly_parquet",
         REPO_ROOT / "data/processed/curated_weekly_csv",
         REPO_ROOT / "data/processed/curated_weekly_fresh_parquet",
         REPO_ROOT / "data/processed/curated_weekly_fresh_csv",
     ]
-    payload["curated_data"] = "missing"
+    payload["curated_data_local"] = "missing"
     for p in data_paths:
         if p.exists():
-            payload["curated_data"] = "ok"
+            payload["curated_data_local"] = "ok"
             payload["curated_data_path"] = str(p.name)
             break
 
@@ -65,5 +72,15 @@ def health():
     # Check semantic index
     index_path = REPO_ROOT / "models/semantic/index.faiss"
     payload["semantic_index"] = "ok" if index_path.exists() else "missing"
+
+    # Check RSS scraping
+    try:
+        from app.scraping.scraping_service import _cache
+        if _cache["data"] is not None:
+            payload["rss_scraping"] = f"cached ({len(_cache['data'])} articles)"
+        else:
+            payload["rss_scraping"] = "not_cached"
+    except Exception:
+        payload["rss_scraping"] = "unavailable"
 
     return payload
