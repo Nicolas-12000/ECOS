@@ -35,34 +35,6 @@
       "type": "socrata",
       "id": "6i25-2hdt",
       "output": "data/raw/vacunacion_6i25-2hdt.csv"
-    },
-    {
-      "key": "rips_agregado",
-      "name": "RIPS vista agregada",
-      "type": "socrata",
-      "id": "5e6c-5p2c",
-      "output": "data/raw/rips_5e6c-5p2c.csv"
-    },
-    {
-      "key": "rips_oficial",
-      "name": "RIPS oficial",
-      "type": "socrata",
-      "id": "4k9h-8qiu",
-      "output": "data/raw/rips_4k9h-8qiu.csv"
-    },
-    {
-      "key": "movilidad_nacional",
-      "name": "Movilidad nacional intermunicipal",
-      "type": "socrata",
-      "id": "eh75-8ah6",
-      "output": "data/raw/movilidad_nacional_eh75-8ah6.csv"
-    },
-    {
-      "key": "movilidad_medellin",
-      "name": "Movilidad terminal Medellin",
-      "type": "socrata",
-      "id": "pfsr-mdyi",
-      "output": "data/raw/movilidad_medellin_terminal_pfsr-mdyi.csv"
     }
   ]
 }

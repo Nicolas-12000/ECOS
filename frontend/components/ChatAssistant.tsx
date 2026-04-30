@@ -16,6 +16,12 @@ export function ChatAssistant() {
   const [input, setInput] = React.useState('')
   const [isLoading, setIsLoading] = React.useState(false)
 
+  React.useEffect(() => {
+    const handleOpen = () => setIsOpen(true);
+    window.addEventListener('open-chat', handleOpen);
+    return () => window.removeEventListener('open-chat', handleOpen);
+  }, []);
+
   const handleSend = async () => {
     if (!input.trim()) return
     
@@ -42,13 +48,27 @@ export function ChatAssistant() {
 
   return (
     <>
-      <div className="fixed bottom-8 right-8 z-50">
+      <div className="fixed bottom-8 right-8 z-50 flex items-center gap-4">
+        {!isOpen && (
+          <motion.div 
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="bg-accent text-primary-contrast px-4 py-2 rounded-full shadow-lg text-sm font-bold flex items-center gap-2 cursor-pointer"
+            onClick={() => setIsOpen(true)}
+          >
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+            </span>
+            ✨ Habla con ECOS
+          </motion.div>
+        )}
         <Button
           onClick={() => setIsOpen(!isOpen)}
           size="icon"
-          className="h-14 w-14 rounded-full shadow-2xl shadow-accent/20"
+          className="h-16 w-16 rounded-full shadow-[0_0_25px_rgba(22,114,90,0.5)] bg-primary text-primary-contrast hover:scale-110 transition-transform"
         >
-          {isOpen ? <X /> : <MessageSquare />}
+          {isOpen ? <X size={28} /> : <MessageSquare size={28} />}
         </Button>
       </div>
 

@@ -140,9 +140,9 @@ def _build_answer(question: str, disease: str | None, municipio_code: str | None
         if signals is not None and not signals.empty:
             latest = signals.iloc[0]
             answer_parts.append(
-                f"Para {disease} en el departamento {departamento_code}, las señales más recientes muestran contexto operativo en RIPS, movilidad y vacunación."
+                f"Para {disease} en el departamento {departamento_code}, las señales más recientes muestran contexto operativo en vacunación."
             )
-            sources.append(ChatSource(title="senales_curadas", excerpt=f"Última señal: RIPS={latest.get('rips_visits_total', 'n/a')}, movilidad={latest.get('mobility_index', 'n/a')}, vacunación={latest.get('vaccination_coverage_pct', 'n/a')}.", source_type="data"))
+            sources.append(ChatSource(title="senales_curadas", excerpt=f"Última señal: vacunación={latest.get('vaccination_coverage_pct', 'n/a')}.", source_type="data"))
             sources.append(ChatSource(
                 title="signals_score",
                 excerpt=f"Trends={latest.get('trends_score', 'n/a')}, RSS={latest.get('rss_mentions', 'n/a')}, score={latest.get('signals_score', 'n/a')}.",

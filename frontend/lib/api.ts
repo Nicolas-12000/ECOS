@@ -7,8 +7,6 @@ export interface SignalsItem {
   departamento_code: string;
   disease: string;
   vaccination_coverage_pct: number | null;
-  rips_visits_total: number | null;
-  mobility_index: number | null;
   trends_score: number | null;
   rss_mentions: number | null;
   signals_score: number | null;
@@ -56,7 +54,6 @@ export interface HistoryItem {
   departamento_code: string;
   cases_total: number;
   temp_avg_c: number | null;
-  humidity_avg_pct: number | null;
   precipitation_mm: number | null;
 }
 

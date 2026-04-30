@@ -37,11 +37,11 @@ export function DashboardHero() {
           </p>
 
           <div className="mt-10 flex flex-wrap gap-4">
-            <Button size="lg" className="shadow-lg shadow-primary/20">
+            <Button size="lg" className="shadow-lg shadow-primary/20" onClick={() => window.location.href = '#dashboard'}>
               <Activity className="mr-2 h-5 w-5" />
               Ver Mapa de Riesgo
             </Button>
-            <Button variant="secondary" size="lg">
+            <Button variant="secondary" size="lg" onClick={() => window.dispatchEvent(new CustomEvent('open-chat'))}>
               <MessageSquare className="mr-2 h-5 w-5" />
               Consultar Asistente
             </Button>
