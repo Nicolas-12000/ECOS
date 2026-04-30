@@ -14,7 +14,8 @@ if (-not (Test-Path "frontend\node_modules")) {
 
 # 2. Iniciar el Backend (FastAPI) en segundo plano
 Write-Host "`n[Backend] Iniciando servidor de API en puerto 8000..." -ForegroundColor Green
-Start-Process "cmd.exe" -ArgumentList "/k py -m fastapi dev backend/app/main.py --port 8000"
+$pythonCmd = if (Get-Command "py" -ErrorAction SilentlyContinue) { "py" } else { "python" }
+Start-Process "cmd.exe" -ArgumentList "/k $pythonCmd -m fastapi dev backend/app/main.py --port 8000"
 
 # 3. Iniciar el Frontend (Next.js) en segundo plano
 Write-Host "`n[Frontend] Iniciando interfaz de usuario en puerto 3000..." -ForegroundColor Green
