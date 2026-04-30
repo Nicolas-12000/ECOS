@@ -8,8 +8,13 @@ No tiene lógica de predicción aquí — eso lo hace el modelo joblib.
 import logging
 from functools import lru_cache
 from pathlib import Path
+from typing import Optional
 
 import pandas as pd
+import psycopg
+from psycopg.rows import dict_row
+
+from app.core.db import get_db_connection
 
 logger = logging.getLogger(__name__)
 
@@ -89,7 +94,33 @@ def get_signals(departamento_code: str, disease: str, limit: int = 52) -> pd.Dat
     return grouped.reset_index(drop=True)
 
 
-def get_last_known_features(municipio_code: str, disease: str) -> pd.Series | None:
+def get_latest_global_summary() -> dict:
+    """Retorna un resumen global de la última semana disponible en Supabase."""
+    query = """
+        SELECT 
+            SUM(cases_total) as total_cases,
+            AVG(NULLIF(temp_avg_c, 0)) as avg_temp,
+            AVG(NULLIF(precipitation_mm, 0)) as avg_precip,
+            epi_year, epi_week, week_start_date
+        FROM public.fact_core_weekly
+        GROUP BY epi_year, epi_week, week_start_date
+        ORDER BY week_start_date DESC
+        LIMIT 1
+    """
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor(row_factory=dict_row) as cur:
+                cur.execute(query)
+                row = cur.fetchone()
+                if not row:
+                    return {}
+                return row
+    except Exception as e:
+        logger.error("Error fetching global summary from DB: %s", e)
+        return {}
+
+
+def get_last_known_features(municipio_code: str, disease: str) -> pd.Series | Optional[pd.DataFrame]:
     """Retorna la fila más reciente del dataset para usar como input al modelo."""
     df = _load_df()
     mask = (df["municipio_code"] == municipio_code) & (df["disease"] == disease)

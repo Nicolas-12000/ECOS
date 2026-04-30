@@ -141,3 +141,25 @@ begin
         end if;
     end loop;
 end $$;
+
+--------------------------------------------------------------------------------
+-- 5. KNOWLEDGE BASE FOR RAG
+--------------------------------------------------------------------------------
+
+create table if not exists public.knowledge_base (
+    id uuid primary key default gen_random_uuid(),
+    title text not null,
+    content text not null,
+    source_path text,
+    metadata jsonb default '{}'::jsonb,
+    created_at timestamptz not null default now()
+);
+
+alter table public.knowledge_base enable row level security;
+
+create policy public_read_knowledge_base on public.knowledge_base
+    for select using (true);
+
+-- Full-text search index for Spanish
+create index if not exists idx_knowledge_base_content 
+    on public.knowledge_base using gin(to_tsvector('spanish', content));

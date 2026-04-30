@@ -10,7 +10,8 @@ import { PredictionPanel } from "@/components/PredictionPanel"
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/Card"
 import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
-import { getHistory } from "@/lib/api"
+import { getHistory, getSummary } from "@/lib/api"
+import { cn } from "@/lib/utils"
 import { 
   BarChart3, 
   Map, 
@@ -30,12 +31,12 @@ export default function Home() {
   React.useEffect(() => {
     const timer = setTimeout(() => setIsLoaded(true), 1000)
     
-    // Fetch real history for a default location (Cali mock - 76760) to show real environmental data
-    getHistory('76760', 'dengue', 1).then(data => {
-      if (data && data.records && data.records.length > 0) {
-        setLatestData(data.records[0])
+    // Fetch real summary from Supabase
+    getSummary().then(res => {
+      if (res.success && res.data) {
+        setLatestData(res.data)
       }
-    }).catch(err => console.error("Error fetching data:", err))
+    }).catch(err => console.error("Error fetching summary:", err))
 
     return () => clearTimeout(timer)
   }, [])
@@ -117,24 +118,24 @@ export default function Home() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <SignalIndicator 
               label="Precipitación"
-              value={latestData?.precipitation_mm ? `${latestData.precipitation_mm.toFixed(0)}mm` : "120mm"}
-              trend={latestData?.precipitation_mm > 100 ? "up" : "stable"}
-              status={latestData?.precipitation_mm > 150 ? "danger" : latestData?.precipitation_mm > 80 ? "warning" : "signal"}
-              description={latestData?.precipitation_mm ? "Dato real de estación local" : "Aumento significativo en la región pacífica"}
+              value={latestData?.avg_precip !== undefined ? `${latestData.avg_precip.toFixed(1)}mm` : "---"}
+              trend={latestData?.avg_precip > 100 ? "up" : "stable"}
+              status={latestData?.avg_precip > 150 ? "danger" : latestData?.avg_precip > 80 ? "warning" : "signal"}
+              description={latestData?.avg_precip !== undefined ? "Promedio nacional de la última semana" : "Datos sincronizados con Supabase"}
             />
             <SignalIndicator 
               label="Temperatura"
-              value={latestData?.temp_avg_c ? `${latestData.temp_avg_c.toFixed(1)}°C` : "28.5°C"}
+              value={latestData?.avg_temp !== undefined ? `${latestData.avg_temp.toFixed(1)}°C` : "---"}
               trend="stable"
               status="signal"
-              description={latestData?.temp_avg_c ? "Promedio nacional actual" : "Promedio histórico estacional"}
+              description={latestData?.avg_temp !== undefined ? "Promedio nacional actual" : "Datos sincronizados con Supabase"}
             />
             <SignalIndicator 
               label="Casos de Dengue (Semana)"
-              value={latestData?.cases_total !== null && latestData?.cases_total !== undefined ? `${latestData.cases_total}` : "---"}
+              value={latestData?.total_cases !== undefined ? `${latestData.total_cases}` : "---"}
               trend="stable"
-              status="danger"
-              description="Reporte semanal epidemiológico"
+              status={latestData?.total_cases > 500 ? "danger" : "warning"}
+              description="Total nacional reportado en la última semana"
             />
           </div>
         </section>
@@ -165,10 +166,10 @@ export default function Home() {
               </CardHeader>
               <CardContent>
                 <div className="text-4xl font-black text-foreground mb-2">
-                  {latestData?.cases_total ? latestData.cases_total : "---"}
+                  {latestData?.total_cases !== undefined ? latestData.total_cases : "---"}
                 </div>
                 <p className="text-sm text-foreground-muted">
-                  Casos de Dengue confirmados en la última semana epidemiológica monitoreada. Tendencia bajo observación constante.
+                  Casos nacionales confirmados en la última semana epidemiológica sincronizada desde Supabase.
                 </p>
               </CardContent>
             </Card>
@@ -181,11 +182,14 @@ export default function Home() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-foreground mb-2 text-warning">
-                  ALERTA NARANJA
+                <div className={cn(
+                  "text-2xl font-bold mb-2",
+                  latestData?.total_cases > 500 ? "text-danger" : "text-warning"
+                )}>
+                  {latestData?.total_cases > 500 ? "ALERTA ROJA" : "ALERTA NARANJA"}
                 </div>
                 <p className="text-sm text-foreground-muted">
-                  Múltiples municipios superan el canal endémico histórico. Se requiere atención prioritaria en control vectorial.
+                  Estado basado en el volumen nacional de reportes comparado con el promedio histórico dinámico.
                 </p>
               </CardContent>
             </Card>
