@@ -16,4 +16,5 @@ api_router.include_router(history_router, prefix="/api", tags=["history"])
 
 api_router.include_router(chat_router, prefix="/api", tags=["chat"])
 api_router.include_router(alerts_router, prefix="/api", tags=["alerts"])
+api_router.include_router(signals_router, prefix="/api", tags=["signals"])
 api_router.include_router(scraping_router, prefix="/api", tags=["scraping"])
