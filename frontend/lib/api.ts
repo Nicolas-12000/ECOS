@@ -98,3 +98,8 @@ export async function predict(municipio_code: string, disease: string, weeks_ahe
   });
   return handleResponse<PredictResponse>(response);
 }
+
+export async function getSummary(): Promise<any> {
+  const response = await fetch(`${API_BASE_URL}/api/summary`);
+  return handleResponse<any>(response);
+}

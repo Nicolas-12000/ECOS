@@ -55,8 +55,6 @@ export function DashboardHero() {
           className="grid grid-cols-2 gap-4 lg:w-[400px]"
         >
           {[
-            { icon: Shield, label: "Protección", value: "98%", sub: "Precisión de detección" },
-            { icon: Activity, label: "Monitoreo", value: "1,122", sub: "Municipios activos" },
             { icon: Search, label: "Análisis", value: "Real-time", sub: "Procesamiento de señales" },
             { icon: MessageSquare, label: "IA", value: "ECOS-LLM", sub: "Asistencia experta" },
           ].map((item, i) => (

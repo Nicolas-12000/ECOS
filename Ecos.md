@@ -355,8 +355,59 @@ Métricas principales:
 
 Demo local con Docker Compose, PostgreSQL local y ejecucion en laptop. No requiere nube para la hackaton. Documentacion completa de arquitectura, APIs y manual de usuario para secretarias de salud.
 
+## 9. Guía Epidemiológica de Enfermedades Priorizadas
+
+Para que el asistente conversacional (RAG) de ECOS responda con precisión, se ha consolidado la siguiente base de conocimientos técnica sobre las enfermedades monitoreadas.
+
+### 9.1 Dengue (Virus del Dengue - DENV)
+*   **Causas:** Virus de la familia *Flaviviridae*. Existen 4 serotipos (DENV-1, DENV-2, DENV-3, DENV-4). La infección por un serotipo no protege contra los otros.
+*   **Medio de Contagio:** Picadura del mosquito hembra *Aedes aegypti* o *Aedes albopictus* infectado. No se transmite de persona a persona.
+*   **Síntomas Clásicos:** Fiebre alta (40°C/104°F), dolor de cabeza severo, dolor detrás de los ojos, dolores musculares y articulares, náuseas, vómitos, agrandamiento de ganglios linfáticos y sarpullido.
+*   **Signos de Alarma (Dengue Grave):** Dolor abdominal intenso, vómitos persistentes, respiración acelerada, sangrado de encías o nariz, fatiga, agitación, presencia de sangre en el vómito o heces.
+*   **Periodo de Incubación:** 4 a 10 días después de la picadura.
+
+### 9.2 Chikungunya (Virus Chikungunya - CHIKV)
+*   **Causas:** Virus de la familia *Togaviridae*.
+*   **Medio de Contagio:** Picadura de mosquitos *Aedes aegypti* y *Aedes albopictus*.
+*   **Síntomas:** Aparición súbita de fiebre alta y **dolor articular intenso**, a menudo debilitante (la palabra "chikungunya" significa "doblarse" en lengua makonde). También incluye dolor muscular, dolor de cabeza, náuseas, fatiga y erupciones cutáneas.
+*   **Diferenciador:** A diferencia del dengue, el dolor articular es mucho más pronunciado y puede persistir por meses o años (fase crónica).
+
+### 9.3 Zika (Virus Zika - ZIKV)
+*   **Causas:** Virus de la familia *Flaviviridae*.
+*   **Medio de Contagio:** Principalmente picadura de mosquitos *Aedes*. También se transmite por **vía sexual**, de madre a hijo durante el embarazo (transmisión vertical) y por transfusiones sanguíneas.
+*   **Síntomas:** Fiebre leve, sarpullido, conjuntivitis (ojos rojos sin secreción), dolor muscular y articular, malestar general y dolor de cabeza. Muchos casos son asintomáticos.
+*   **Complicaciones Graves:** Vinculado al síndrome de Guillain-Barré y, en mujeres embarazadas, causante de microcefalia y otras malformaciones congénitas en el feto.
+
+### 9.4 Malaria (Paludismo)
+*   **Causas:** Parásitos del género *Plasmodium*. En Colombia predominan *P. vivax* y *P. falciparum* (este último es el más peligroso).
+*   **Medio de Contagio:** Picadura de la hembra del mosquito *Anopheles* infectada. El mosquito pica principalmente entre el anochecer y el amanecer.
+*   **Síntomas:** Ciclos de fiebre, escalofríos, sudoración, dolor de cabeza, náuseas, vómitos y dolor muscular.
+*   **Complicaciones:** Anemia grave, dificultad respiratoria, falla orgánica y malaria cerebral (especialmente por *P. falciparum*). Es una emergencia médica.
+
 ---
 
+## 10. Protocolos de Prevención y Planes de Acción
+
+### 10.1 Medidas de Prevención (Control de Vectores)
+1.  **Eliminación de Criaderos:** Lavar y cepillar tanques y albercas cada 8 días. Tapar recipientes que almacenen agua. Eliminar objetos inservibles que acumulen agua lluvia (llantas, botellas, latas).
+2.  **Protección Personal:** Uso de repelentes (DEET o IR3535), ropa de manga larga y pantalones, uso de toldillos (mosquiteros) tratados con insecticida al dormir.
+3.  **Barreras Físicas:** Instalación de mallas/animes en puertas y ventanas.
+
+### 10.2 Plan de Acción Frente al Contagio (Nivel Individual)
+*   **Búsqueda de Atención:** Acudir inmediatamente al centro de salud más cercano ante síntomas febriles en zonas de riesgo.
+*   **No Automedicación:** **¡IMPORTANTE!** No tomar aspirina, ibuprofeno ni otros antiinflamatorios no esteroideos (AINEs) si se sospecha de dengue, ya que aumentan el riesgo de hemorragia. Solo se recomienda acetaminofén/paracetamol bajo guía médica.
+*   **Hidratación:** Aumentar la ingesta de líquidos (suero oral, jugos, agua).
+*   **Aislamiento del Vector:** El paciente enfermo debe dormir bajo toldillo para evitar que mosquitos sanos lo piquen, se infecten y propaguen el virus a su familia o vecinos.
+
+### 10.3 Plan de Acción Frente a un Brote Inminente (Nivel Institucional/Comunitario)
+1.  **Activación de Alerta Temprana:** ECOS notifica a la Secretaría de Salud departamental y municipal.
+2.  **Intensificación de Vigilancia:** Realizar búsqueda activa de casos casa por casa y en centros de salud.
+3.  **Control Químico:** Programar jornadas de fumigación espacial y motomochila en las zonas de mayor riesgo predicho por ECOS.
+4.  **Movilización Social:** Realizar jornadas de "limpiatón" comunitaria para eliminar criaderos masivamente.
+5.  **Refuerzo Hospitalario:** Garantizar disponibilidad de camas, insumos de hidratación (líquidos IV) y personal capacitado en el protocolo de manejo clínico de arbovirosis.
+6.  **Comunicación de Riesgo:** Emisión de boletines radiales y prensa local instando a la comunidad a usar toldillos y eliminar aguas estancadas.
+
+---
 
 ## 11. Criterios de Evaluación y Puntuación Estimada
 

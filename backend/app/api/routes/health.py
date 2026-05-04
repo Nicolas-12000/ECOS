@@ -2,11 +2,23 @@ import logging
 from pathlib import Path
 
 from fastapi import APIRouter
+from fastapi.encoders import jsonable_encoder
 
 from app.core.config import settings
+from app.services.epidemiology import get_latest_global_summary
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+@router.get("/summary", summary="Resumen operativo global para el dashboard")
+def summary():
+    """Retorna las estadísticas más recientes agregadas a nivel nacional."""
+    data = get_latest_global_summary()
+    return jsonable_encoder({
+        "success": bool(data),
+        "data": data
+    })
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 

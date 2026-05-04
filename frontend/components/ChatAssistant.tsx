@@ -15,6 +15,28 @@ export function ChatAssistant() {
   ])
   const [input, setInput] = React.useState('')
   const [isLoading, setIsLoading] = React.useState(false)
+  const scrollAnchor = React.useRef<HTMLDivElement>(null)
+  const scrollContainerRef = React.useRef<HTMLDivElement>(null)
+
+  const scrollToBottom = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({
+        top: scrollContainerRef.current.scrollHeight,
+        behavior: "smooth"
+      })
+    }
+  }
+
+  React.useEffect(() => {
+    // Scroll immediately on message changes
+    scrollToBottom();
+    
+    // Also set a timeout for when the open animation finishes or new content loads
+    if (isOpen) {
+      const timer = setTimeout(scrollToBottom, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [messages, isOpen, isLoading])
 
   React.useEffect(() => {
     const handleOpen = () => setIsOpen(true);
@@ -93,7 +115,10 @@ export function ChatAssistant() {
                 </div>
               </CardHeader>
               
-              <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
+              <CardContent 
+                ref={scrollContainerRef}
+                className="flex-1 overflow-y-auto p-4 space-y-4"
+              >
                 {messages.map((msg, i) => (
                   <div
                     key={i}
@@ -119,6 +144,7 @@ export function ChatAssistant() {
                     </div>
                   </div>
                 )}
+                <div ref={scrollAnchor} />
               </CardContent>
 
               <div className="p-4 border-t border-border bg-surface">

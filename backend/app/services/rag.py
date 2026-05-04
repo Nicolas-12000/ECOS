@@ -30,6 +30,7 @@ def generate_answer(question: str, sources: Iterable, fallback: str) -> str:
     context = _build_context(sources)
     system = (
         "Eres el asistente ECOS. Responde en espanol, breve y operativo. "
+        "Toda tu informacion proviene de la base de datos oficial en Supabase. "
         "Usa solo el contexto y los hechos entregados. Si faltan datos, dilo."
     )
     user = (
