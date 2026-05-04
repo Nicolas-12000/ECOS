@@ -40,7 +40,7 @@ def health():
             payload["database"] = "ok"
         except Exception:
             logger.warning("Database health check failed")
-            payload["database"] = "unavailable"
+            payload["database"] = "error"
     else:
         payload["database"] = "not_configured"
 
