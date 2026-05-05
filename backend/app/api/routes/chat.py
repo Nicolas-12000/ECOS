@@ -81,7 +81,6 @@ def _query_climate_by_depto(departamento_code: str) -> dict | None:
             ROUND(MAX(NULLIF(temp_max_c, 0))::numeric, 2)         AS max_temp,
             ROUND(AVG(NULLIF(precipitation_mm, 0))::numeric, 2)   AS avg_precip,
             ROUND(MAX(NULLIF(precipitation_mm, 0))::numeric, 2)   AS max_precip,
-            ROUND(AVG(NULLIF(humidity_avg_pct, 0))::numeric, 2)   AS avg_humidity,
             MIN(week_start_date)                                   AS data_from,
             MAX(week_start_date)                                   AS data_to
         FROM public.fact_core_weekly
@@ -94,8 +93,8 @@ def _query_climate_by_depto(departamento_code: str) -> dict | None:
     r = rows[0]
     return {
         "avg_temp": r[0], "min_temp": r[1], "max_temp": r[2],
-        "avg_precip": r[3], "max_precip": r[4], "avg_humidity": r[5],
-        "data_from": str(r[6]), "data_to": str(r[7]),
+        "avg_precip": r[3], "max_precip": r[4],
+        "data_from": str(r[5]), "data_to": str(r[6]),
     }
 
 
@@ -367,12 +366,11 @@ def _build_answer(question: str, intent: dict) -> tuple[str, list[ChatSource]]:
                 f"Temperatura promedio: {climate['avg_temp']}°C "
                 f"(mín {climate['min_temp']}°C / máx {climate['max_temp']}°C). "
                 f"Precipitación promedio: {climate['avg_precip']} mm "
-                f"(máximo registrado: {climate['max_precip']} mm). "
-                f"Humedad promedio: {climate['avg_humidity']}%."
+                f"(máximo registrado: {climate['max_precip']} mm)."
             )
             sources.append(ChatSource(
                 title="clima_departamento",
-                excerpt=f"Depto {depto}: T°={climate['avg_temp']}°C, Precip={climate['avg_precip']}mm, Humedad={climate['avg_humidity']}%.",
+                excerpt=f"Depto {depto}: T°={climate['avg_temp']}°C, Precip={climate['avg_precip']}mm.",
                 source_type="data",
             ))
         else:

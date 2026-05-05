@@ -24,12 +24,10 @@ CLIMATE_COLS = [
     "temp_avg_c",
     "temp_min_c",
     "temp_max_c",
-    "humidity_avg_pct",
     "precipitation_mm",
     "temp_avg_c_actual",
     "temp_min_c_actual",
     "temp_max_c_actual",
-    "humidity_avg_pct_actual",
     "precipitation_mm_actual",
 ]
 EXOG_COLS = [
