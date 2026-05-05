@@ -15,14 +15,15 @@ def get_news(
         articles = [a for a in articles if disease.lower() in a.get("diseases", [])]
 
     # Map to schema
-    return [
-        NewsArticle(
+    results = []
+    for a in articles:
+        article = NewsArticle(
             title=a.get("title", ""),
             link=a.get("link", ""),
             source=a.get("source", ""),
             published=a.get("published", ""),
-            summary=a.get("summary"),
+            summary=a.get("summary", ""),
             diseases=a.get("diseases", [])
         )
-        for a in articles
-    ]
+        results.append(article)
+    return results

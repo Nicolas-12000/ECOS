@@ -18,18 +18,30 @@ from app.api.routes.report import router as report_router
 
 api_router = APIRouter()
 
+# Health remains at root `/health`
 api_router.include_router(health_router, tags=["health"])
-api_router.include_router(predict_router, prefix="/api/v1", tags=["predict"])
-api_router.include_router(history_router, prefix="/api/v1", tags=["history"])
-api_router.include_router(chat_router, prefix="/api/v1", tags=["chat"])
-api_router.include_router(alerts_router, prefix="/api/v1", tags=["alerts"])
-api_router.include_router(scraping_router, prefix="/api/v1", tags=["scraping"])
-api_router.include_router(signals_router, prefix="/api/v1", tags=["signals"])
-api_router.include_router(weather_router, prefix="/api/v1", tags=["weather"])
-api_router.include_router(endemic_router, prefix="/api/v1", tags=["endemic"])
-api_router.include_router(trends_router, prefix="/api/v1", tags=["trends"])
-api_router.include_router(news_router, prefix="/api/v1", tags=["news"])
-api_router.include_router(mobility_router, prefix="/api/v1", tags=["mobility"])
-api_router.include_router(timeseries_router, prefix="/api/v1", tags=["timeseries"])
-api_router.include_router(whatif_router, prefix="/api/v1", tags=["whatif"])
-api_router.include_router(report_router, prefix="/api/v1", tags=["report"])
+
+# Provide compatibility prefixes so clients/tests using different API versions continue
+# to work: `/api`, `/api/v1` and `/api/v3` will expose the same set of routers.
+api_prefixes = ["/api", "/api/v1", "/api/v3"]
+
+routers = [
+	(predict_router, "predict"),
+	(history_router, "history"),
+	(chat_router, "chat"),
+	(alerts_router, "alerts"),
+	(scraping_router, "scraping"),
+	(signals_router, "signals"),
+	(weather_router, "weather"),
+	(endemic_router, "endemic"),
+	(trends_router, "trends"),
+	(news_router, "news"),
+	(mobility_router, "mobility"),
+	(timeseries_router, "timeseries"),
+	(whatif_router, "whatif"),
+	(report_router, "report"),
+]
+
+for prefix in api_prefixes:
+	for r, tag in routers:
+		api_router.include_router(r, prefix=prefix, tags=[tag])

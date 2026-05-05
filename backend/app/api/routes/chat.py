@@ -296,14 +296,23 @@ def _detect_intent(question: str) -> dict:
 # ---------------------------------------------------------------------------
 
 def _search_knowledge_base(question: str, limit: int = 3) -> list[ChatSource]:
+    # Try to read publication_date and source_type if available in the table.
     rows = _db_execute("""
-        SELECT title, content
+        SELECT title, content,
+               COALESCE(publication_date::text, '') AS publication_date,
+               COALESCE(source_type, 'doc') AS source_type
         FROM public.knowledge_base
         WHERE to_tsvector('spanish', content) @@ plainto_tsquery('spanish', %s)
            OR content ILIKE %s
         LIMIT %s
     """, (question, f"%{question}%", limit))
-    return [ChatSource(title=r[0], excerpt=r[1][:500], source_type="doc") for r in rows]
+
+    sources: list[ChatSource] = []
+    for r in rows:
+        title, content, pub_date, src_type = r[0], r[1] or "", (r[2] or None), (r[3] or "doc")
+        excerpt = content[:500]
+        sources.append(ChatSource(title=title, excerpt=excerpt, source_type=src_type, publication_date=pub_date))
+    return sources
 
 
 def _document_snippets(question: str, limit: int = 3) -> list[ChatSource]:
@@ -319,6 +328,19 @@ def _document_snippets(question: str, limit: int = 3) -> list[ChatSource]:
 
     # Fallback a búsqueda textual (TSVECTOR/ILIKE)
     db_sources = _search_knowledge_base(question, limit=limit)
+
+    # Depriorizar automáticamente documentos de la época pandémica (2020/2021)
+    # salvo que la pregunta mencione explícitamente esos años o 'covid'.
+    qlow = question.lower()
+    if not re.search(r"\b(2020|2021|covid)\b", qlow):
+        def _is_pandemic(src: ChatSource) -> bool:
+            text = (src.title or "") + " " + (src.excerpt or "")
+            text = text.lower()
+            return "2020" in text or "2021" in text or "covid" in text
+
+        # Stable sort: non-pandemic first
+        db_sources.sort(key=lambda s: _is_pandemic(s))
+
     return db_sources
 
 

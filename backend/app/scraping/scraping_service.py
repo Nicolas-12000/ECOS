@@ -150,7 +150,7 @@ def fetch_rss_articles(lookback_days: int = 30) -> list[dict]:
                     "source": source_name,
                     "title": title,
                     "summary": summary[:300],
-                    "url": item.get("link", ""),
+                    "link": item.get("link", ""),
                     "published": published.isoformat(),
                     "diseases": diseases,
                     "relevance_score": round(score, 2),

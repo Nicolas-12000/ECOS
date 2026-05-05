@@ -85,6 +85,7 @@ class ChatSource(BaseModel):
     title: str
     excerpt: str
     source_type: str
+    publication_date: Optional[str] = None
 
 
 class ChatResponse(BaseModel):
