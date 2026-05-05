@@ -179,12 +179,19 @@ def fetch_rss(lookback_days: int) -> pd.DataFrame:
     grouped = df.groupby(["week_start_date", "disease", "departamento_code"], dropna=False).agg({"rss_mentions": "sum"}).reset_index()
     return grouped
 
-def write_csv(df: pd.DataFrame, path: Path, append: bool) -> None:
+def write_csv(df: pd.DataFrame, path: Path, append: bool, retain_weeks: int) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     if append and path.exists():
         existing = pd.read_csv(path)
         df = pd.concat([existing, df], ignore_index=True)
         df = df.drop_duplicates(subset=["week_start_date", "disease", "departamento_code"])
+    if retain_weeks and retain_weeks > 0:
+        df["week_start_date"] = pd.to_datetime(df["week_start_date"], errors="coerce")
+        max_week = df["week_start_date"].max()
+        if pd.notna(max_week):
+            cutoff = max_week - pd.Timedelta(weeks=retain_weeks - 1)
+            df = df[df["week_start_date"] >= cutoff]
+        df["week_start_date"] = df["week_start_date"].dt.date.astype("string")
     df.to_csv(path, index=False)
 
 def main() -> int:
@@ -196,16 +203,17 @@ def main() -> int:
     parser.add_argument("--trends-output", default=str(DEFAULT_TRENDS_OUT))
     parser.add_argument("--rss-output", default=str(DEFAULT_RSS_OUT))
     parser.add_argument("--append", action="store_true")
+    parser.add_argument("--retain-weeks", type=int, default=4, help="Keep only the most recent N weeks in CSV")
     args = parser.parse_args()
 
     trends_df = fetch_trends(args.timeframe, args.by_dept, args.sleep)
     if not trends_df.empty:
-        write_csv(trends_df, Path(args.trends_output), args.append)
+        write_csv(trends_df, Path(args.trends_output), args.append, args.retain_weeks)
         print(f"[ok] trends -> {args.trends_output} ({len(trends_df)} rows)")
     
     rss_df = fetch_rss(args.rss_lookback_days)
     if not rss_df.empty:
-        write_csv(rss_df, Path(args.rss_output), args.append)
+        write_csv(rss_df, Path(args.rss_output), args.append, args.retain_weeks)
         print(f"[ok] rss -> {args.rss_output} ({len(rss_df)} rows)")
 
     return 0

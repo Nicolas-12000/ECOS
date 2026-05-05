@@ -908,6 +908,10 @@ def enrich_and_write(
         "municipio_code",
     ).distinct()
 
+    # Mobility exports (captured during enrichment) - may be written separately later
+    mobility_export = None
+    medellin_export = None
+
 
     # --- 2. FACT: CORE WEEKLY (SIVIGILA + Vaccination + Climate) ---
     print("[info] Generando Fact Table: Core Weekly...")
@@ -980,17 +984,41 @@ def enrich_and_write(
             med_joined = (
                  mobility_medellin.join(muni_map.select("municipio_norm", "municipio_code"), on="municipio_norm", how="left")
                 .filter(F.col("municipio_code").isNotNull())
-                .select("municipio_code", "epi_year", "epi_week", "mobility_in", "mobility_out")
+                .select("municipio_code", "epi_year", "epi_week", "week_start_date", "mobility_in", "mobility_out")
             )
+            # normalize Medellín flows to `municipio_code` and include in the combined mobility dataset
             mobility_joined = mobility_joined.unionByName(med_joined, allowMissingColumns=True)
 
+        # aggregate combined mobility (national + medellin if present)
+        # aggregate combined mobility (preserve week_start_date when available)
+        group_cols = [c for c in ["municipio_code", "epi_year", "epi_week", "week_start_date"] if c in mobility_joined.columns]
         mobility_joined = (
-            mobility_joined.groupBy("municipio_code", "epi_year", "epi_week")
+            mobility_joined.groupBy(*group_cols)
             .agg(
                 F.sum("mobility_in").alias("mobility_in"),
                 F.sum("mobility_out").alias("mobility_out"),
             )
         )
+        # Ensure municipio_code exists and fill missing week_start_date when possible
+        mobility_joined = mobility_joined.filter(F.col("municipio_code").isNotNull())
+        if "week_start_date" in mobility_joined.columns:
+            mobility_joined = mobility_joined.withColumn(
+                "week_start_date",
+                F.coalesce(F.col("week_start_date"), spark_iso_week_start("epi_year", "epi_week")),
+            )
+
+        # compute mobility_index for export (sum of in+out). Use 0.0 when missing to avoid nulls.
+        mobility_joined = mobility_joined.withColumn(
+            "mobility_index",
+            (F.coalesce(F.col("mobility_in"), F.lit(0.0)) + F.coalesce(F.col("mobility_out"), F.lit(0.0))).cast("double"),
+        )
+        # capture for export
+        mobility_export = mobility_joined
+
+        # Avoid duplicate `week_start_date` columns when joining: drop from mobility if core has it
+        if "week_start_date" in mobility_joined.columns and "week_start_date" in core_df.columns:
+            mobility_joined = mobility_joined.drop("week_start_date")
+
         core_df = core_df.join(
             mobility_joined,
             on=["municipio_code", "epi_year", "epi_week"],
@@ -1112,7 +1140,7 @@ def enrich_and_write(
             "epi_week",
             "week_start_date",
             "week_end_date",
-            F.month(F.col("week_start_date")).alias("month_num"),
+            F.month(core_df["week_start_date"]).alias("month_num"),
             "departamento_code",
             "municipio_code",
             "event_code",
@@ -1260,6 +1288,26 @@ def enrich_and_write(
         fact_vaccination.coalesce(1).write.mode("overwrite").option("header", True).csv(f"{out_csv_prefix}_fact_vaccination_annual")
 
     sivigila.unpersist()
+
+    # --- Mobility CSV exports ---
+    # Export combined mobility table and Medellín-specific table (if available).
+    try:
+        if mobility_export is not None:
+            print(f"[info] Exporting unified mobility CSV to {out_csv_prefix}_mobility_combined")
+            # Ensure canonical column order to make downstream consumption predictable
+            cols = [
+                c for c in ["municipio_code", "epi_year", "epi_week", "week_start_date", "mobility_in", "mobility_out", "mobility_index"]
+                if c in mobility_export.columns
+            ]
+            # Fill missing mobility_in/out with 0 to avoid empty cells in CSV
+            if "mobility_in" in mobility_export.columns:
+                mobility_export = mobility_export.withColumn("mobility_in", F.coalesce(F.col("mobility_in"), F.lit(0.0)))
+            if "mobility_out" in mobility_export.columns:
+                mobility_export = mobility_export.withColumn("mobility_out", F.coalesce(F.col("mobility_out"), F.lit(0.0)))
+
+            mobility_export.select(*cols).coalesce(1).write.mode("overwrite").option("header", True).csv(f"{out_csv_prefix}_mobility_combined")
+    except Exception as e:
+        print(f"[warn] could not export mobility CSV: {e}")
 
 
 

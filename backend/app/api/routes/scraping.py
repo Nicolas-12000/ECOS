@@ -49,7 +49,8 @@ def trigger_scraping():
     repo_root = Path(__file__).resolve().parents[4]
     status_file = repo_root / "data" / "scraping_status.json"
     python_exe = sys.executable
-    script_path = repo_root / "scripts" / "fetch_signals.py"
+    signals_script = repo_root / "scripts" / "fetch_signals.py"
+    meteo_script = repo_root / "scripts" / "fetch_open_meteo.py"
 
     # Cargar estado
     if status_file.exists():
@@ -81,7 +82,12 @@ def trigger_scraping():
 
         # Usar Popen para no bloquear la API
         subprocess.Popen(
-            [python_exe, str(script_path)],
+            [python_exe, str(signals_script), "--append", "--retain-weeks", "4"],
+            cwd=str(repo_root),
+            start_new_session=True
+        )
+        subprocess.Popen(
+            [python_exe, str(meteo_script), "--append", "--retain-weeks", "4"],
             cwd=str(repo_root),
             start_new_session=True
         )

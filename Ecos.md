@@ -1,5 +1,4 @@
 # ECOS — Early Control and Observation System
-
 ## Plataforma Nacional de Alerta Temprana para Enfermedades de Alto Impacto en Colombia
 
 > **Concurso:** Datos al Ecosistema 2026 — IA para Colombia
@@ -17,7 +16,7 @@
 4. Fuentes de datos y pipeline de ingesta
 5. Modelos de IA y metodología CRISP-ML
 6. Stack tecnológico detallado
-7. **Guía visual de dashboards** ← _El corazón del proyecto_
+7. **Guía visual de dashboards** ← *El corazón del proyecto*
    - Dashboard 1 — Centro de Comando Nacional (Plotly Dash)
    - Dashboard 2 — Inteligencia de Señales Tempranas (Next.js)
    - Dashboard 3 — Mapa de Calor Movilidad × Enfermedad (Plotly Dash + Kepler.gl)
@@ -53,13 +52,13 @@ La propuesta técnica se articula en tres capas que se comunican en tiempo real:
 
 **¿Qué nos diferencia de otros proyectos del concurso?**
 
-| Diferenciador                            | Descripción                                                                                                                                        |
-| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 🔴 Señales 2–3 semanas antes             | Google Trends por departamento + noticias scrapeadas en tiempo real                                                                                |
-| 🟠 Correlación movilidad-enfermedad      | Mapa de calor OD (origen-destino) que muestra cómo los flujos de pasajeros propagan brotes                                                         |
-| 🟡 Monitor de noticias vivo              | Feed con NLP que clasifica y georreferencia noticias epidemiológicas de los últimos 30 días                                                        |
-| 🟢 RAG conversacional                    | Asistente que responde en lenguaje natural citando las fuentes y explicando las variables SHAP                                                     |
-| 🔵 Explicabilidad SHAP                   | Cada predicción muestra cuánto contribuyó cada variable (clima, movilidad, tendencias)                                                             |
+| Diferenciador | Descripción |
+|---|---|
+| 🔴 Señales 2–3 semanas antes | Google Trends por departamento + noticias scrapeadas en tiempo real |
+| 🟠 Correlación movilidad-enfermedad | Mapa de calor OD (origen-destino) que muestra cómo los flujos de pasajeros propagan brotes |
+| 🟡 Monitor de noticias vivo | Feed con NLP que clasifica y georreferencia noticias epidemiológicas de los últimos 30 días |
+| 🟢 RAG conversacional | Asistente que responde en lenguaje natural citando las fuentes y explicando las variables SHAP |
+| 🔵 Explicabilidad SHAP | Cada predicción muestra cuánto contribuyó cada variable (clima, movilidad, tendencias) |
 | 🟣 Plotly Dash + Next.js (100% gratuito) | Stack de visualización completamente open-source, embebible, sin licencias ni servicios de pago. Demo reproducible en cualquier laptop con Docker. |
 
 ---
@@ -140,14 +139,14 @@ Colombia tiene más de 15 años de datos epidemiológicos abiertos en datos.gov.
 
 ### 4.1 Seis datasets de datos.gov.co
 
-| #   | Dataset                       | Entidad       | Variables clave                | Rol en el modelo                      |
-| --- | ----------------------------- | ------------- | ------------------------------ | ------------------------------------- |
-| 1   | SIVIGILA 2007–2022            | INS           | casos/semana/municipio/evento  | Variable objetivo (Y) — ground truth  |
-| 2   | Chikungunya detallado         | INS           | inicio síntomas, clasificación | Calibración para chikungunya          |
-| 3   | Normales climatológicas IDEAM | IDEAM         | temp, humedad, precipitación   | Features climáticas baseline          |
-| 4   | Coberturas de vacunación      | MinSalud      | % cobertura/dpto/biológico     | Factor de susceptibilidad poblacional |
-| 5   | RIPS atenciones               | MinSalud      | diagnóstico CIE-10, atenciones | Señal paralela al SIVIGILA            |
-| 6   | Movilidad OD intermunicipal   | MinTransporte | origen-destino, pasajeros      | Difusión geográfica del riesgo        |
+| # | Dataset | Entidad | Variables clave | Rol en el modelo |
+|---|---|---|---|---|
+| 1 | SIVIGILA 2007–2022 | INS | casos/semana/municipio/evento | Variable objetivo (Y) — ground truth |
+| 2 | Chikungunya detallado | INS | inicio síntomas, clasificación | Calibración para chikungunya |
+| 3 | Normales climatológicas IDEAM | IDEAM | temp, humedad, precipitación | Features climáticas baseline |
+| 4 | Coberturas de vacunación | MinSalud | % cobertura/dpto/biológico | Factor de susceptibilidad poblacional |
+| 5 | RIPS atenciones | MinSalud | diagnóstico CIE-10, atenciones | Señal paralela al SIVIGILA |
+| 6 | Movilidad OD intermunicipal | MinTransporte | origen-destino, pasajeros | Difusión geográfica del riesgo |
 
 ### 4.2 Señales tempranas scrapeadas (el diferencial competitivo)
 
@@ -157,13 +156,13 @@ Colombia tiene más de 15 años de datos epidemiológicos abiertos en datos.gov.
 
 Google Trends tiene sesgos estructurales que lo hacen poco confiable como señal epidemiológica a nivel granular en Colombia:
 
-| Sesgo                                     | Impacto en ECOS                                                                                                                                                     |
-| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Brecha digital**                        | Chocó, Vaupés, Guainía, Vichada — donde más malaria hay — tienen baja penetración de internet. Los que más sufren la enfermedad son los que menos buscan en Google. |
-| **Sesgo urbano**                          | Bogotá, Medellín y Cali pesan desproporcionadamente. Un spike nacional puede ser bogotanos leyendo noticias, no casos reales en zonas endémicas.                    |
-| **Índice relativo, no absoluto**          | El 0–100 es relativo al propio período consultado. Un 80 en Vaupés no es comparable con un 80 en Antioquia.                                                         |
-| **Datos insuficientes en dptos pequeños** | Google devuelve vacío si el volumen de búsquedas es bajo — precisamente en los departamentos más vulnerables.                                                       |
-| **Señal reactiva, no siempre predictiva** | Cuando el INS o los medios emiten una alerta, la gente busca en Google masivamente. La señal puede estar siguiendo la noticia, no precediendo al brote.             |
+| Sesgo | Impacto en ECOS |
+|---|---|
+| **Brecha digital** | Chocó, Vaupés, Guainía, Vichada — donde más malaria hay — tienen baja penetración de internet. Los que más sufren la enfermedad son los que menos buscan en Google. |
+| **Sesgo urbano** | Bogotá, Medellín y Cali pesan desproporcionadamente. Un spike nacional puede ser bogotanos leyendo noticias, no casos reales en zonas endémicas. |
+| **Índice relativo, no absoluto** | El 0–100 es relativo al propio período consultado. Un 80 en Vaupés no es comparable con un 80 en Antioquia. |
+| **Datos insuficientes en dptos pequeños** | Google devuelve vacío si el volumen de búsquedas es bajo — precisamente en los departamentos más vulnerables. |
+| **Señal reactiva, no siempre predictiva** | Cuando el INS o los medios emiten una alerta, la gente busca en Google masivamente. La señal puede estar siguiendo la noticia, no precediendo al brote. |
 
 **Estrategia híbrida adoptada:**
 
@@ -269,7 +268,6 @@ def classify_trend_alert(current_index, historical_series):
 ```
 
 **Términos monitoreados:**
-
 ```
 "dengue síntomas"       · "fiebre dengue"        · "mosquito dengue"
 "chikungunya Colombia"  · "malaria Colombia"      · "zika síntomas"
@@ -470,35 +468,34 @@ Respuesta con fuentes citadas + datos SHAP + recomendación de acción
 ```
 
 **Ejemplos de preguntas respondibles:**
-
-- _"¿Cuál es el riesgo de dengue en Nariño las próximas 3 semanas?"_
-- _"¿Qué municipios de la Costa tienen mayor riesgo de malaria este mes?"_
-- _"¿Qué noticias recientes hay sobre brotes en el Pacífico?"_
-- _"¿Cómo afecta la movilidad desde Medellín al riesgo en el Eje Cafetero?"_
-- _"¿Cuántos casos de chikungunya hubo en 2019 en el Valle?"_
+- *"¿Cuál es el riesgo de dengue en Nariño las próximas 3 semanas?"*
+- *"¿Qué municipios de la Costa tienen mayor riesgo de malaria este mes?"*
+- *"¿Qué noticias recientes hay sobre brotes en el Pacífico?"*
+- *"¿Cómo afecta la movilidad desde Medellín al riesgo en el Eje Cafetero?"*
+- *"¿Cuántos casos de chikungunya hubo en 2019 en el Valle?"*
 
 ---
 
 ## 6. Stack Tecnológico
 
-| Capa                     | Tecnología                           | Por qué                                                                                                 | Costo                     |
-| ------------------------ | ------------------------------------ | ------------------------------------------------------------------------------------------------------- | ------------------------- |
-| ETL y procesamiento      | PySpark 3.5                          | Maneja millones de registros SIVIGILA sin cuello de botella                                             | ✅ Gratuito               |
-| Modelo series temporales | Prophet 1.1 (Meta)                   | Estacionalidad múltiple + festivos colombianos integrados                                               | ✅ Gratuito               |
-| Modelo tabular           | XGBoost 2.0                          | Mejor desempeño en datos tabulares, manejo nativo de nulos                                              | ✅ Gratuito               |
-| Explicabilidad           | SHAP 0.45                            | Gráficos listos para decisores no técnicos                                                              | ✅ Gratuito               |
-| Backend API              | FastAPI 0.111 + Python 3.11          | Alto rendimiento, Swagger automático, async                                                             | ✅ Gratuito               |
-| Scraping                 | pytrends + feedparser + pdfplumber   | Especializadas, sin dependencias pesadas                                                                | ✅ Gratuito               |
-| NLP noticias             | spaCy es_core_news_sm + scikit-learn | NER en español + clasificador liviano                                                                   | ✅ Gratuito               |
-| RAG                      | LangChain 0.2 + ChromaDB + Groq      | Groq free tier: ~30 RPM / 6000 TPM — suficiente para demo y uso moderado. Limitación documentada en §8. | ✅ Gratuito (con límites) |
-| Dashboard epidemiológico | **Plotly Dash 2.x**                  | 100% Python, 100% open-source, sin licencias, embebible                                                 | ✅ Gratuito               |
-| Portal web               | Next.js 15 + Tailwind + shadcn/ui    | SSR, App Router, despliegue en Vercel o Docker                                                          | ✅ Gratuito               |
-| Mapas de flujo OD        | Kepler.gl (MIT License)              | Arcos origen-destino, sin costo                                                                         | ✅ Gratuito               |
-| Gráficos web             | Recharts + D3.js                     | Integración nativa con React                                                                            | ✅ Gratuito               |
-| Infraestructura          | Docker + Docker Compose              | Demo local reproducible, sin nube requerida                                                             | ✅ Gratuito               |
-| Persistencia             | PostgreSQL 16 + Parquet              | Operacional + histórico eficiente                                                                       | ✅ Gratuito               |
-| CI/CD                    | GitHub Actions                       | Tests automáticos, lint, despliegue                                                                     | ✅ Gratuito               |
-| Clima actual             | Open-Meteo API                       | Sin API key, sin costo, cobertura global                                                                | ✅ Gratuito               |
+| Capa | Tecnología | Por qué | Costo |
+|---|---|---|---|
+| ETL y procesamiento | PySpark 3.5 | Maneja millones de registros SIVIGILA sin cuello de botella | ✅ Gratuito |
+| Modelo series temporales | Prophet 1.1 (Meta) | Estacionalidad múltiple + festivos colombianos integrados | ✅ Gratuito |
+| Modelo tabular | XGBoost 2.0 | Mejor desempeño en datos tabulares, manejo nativo de nulos | ✅ Gratuito |
+| Explicabilidad | SHAP 0.45 | Gráficos listos para decisores no técnicos | ✅ Gratuito |
+| Backend API | FastAPI 0.111 + Python 3.11 | Alto rendimiento, Swagger automático, async | ✅ Gratuito |
+| Scraping | pytrends + feedparser + pdfplumber | Especializadas, sin dependencias pesadas | ✅ Gratuito |
+| NLP noticias | spaCy es_core_news_sm + scikit-learn | NER en español + clasificador liviano | ✅ Gratuito |
+| RAG | LangChain 0.2 + ChromaDB + Groq | Groq free tier: ~30 RPM / 6000 TPM — suficiente para demo y uso moderado. Limitación documentada en §8. | ✅ Gratuito (con límites) |
+| Dashboard epidemiológico | **Plotly Dash 2.x** | 100% Python, 100% open-source, sin licencias, embebible | ✅ Gratuito |
+| Portal web | Next.js 15 + Tailwind + shadcn/ui | SSR, App Router, despliegue en Vercel o Docker | ✅ Gratuito |
+| Mapas de flujo OD | Kepler.gl (MIT License) | Arcos origen-destino, sin costo | ✅ Gratuito |
+| Gráficos web | Recharts + D3.js | Integración nativa con React | ✅ Gratuito |
+| Infraestructura | Docker + Docker Compose | Demo local reproducible, sin nube requerida | ✅ Gratuito |
+| Persistencia | PostgreSQL 16 + Parquet | Operacional + histórico eficiente | ✅ Gratuito |
+| CI/CD | GitHub Actions | Tests automáticos, lint, despliegue | ✅ Gratuito |
+| Clima actual | Open-Meteo API | Sin API key, sin costo, cobertura global | ✅ Gratuito |
 
 > **Costo total del stack:** $0. Todas las herramientas son open-source o tienen tier gratuito suficiente para el concurso y un despliegue institucional de baja concurrencia. La única limitación real es Groq (30 requests/minuto en free tier), documentada y mitigable con caché.
 
@@ -560,7 +557,6 @@ Respuesta con fuentes citadas + datos SHAP + recomendación de acción
 ```
 
 **Componentes Plotly Dash utilizados:**
-
 - `dcc.Graph` con `go.Choropleth` — mapa coroplético Colombia, escala verde-amarillo-rojo
 - `dcc.Graph` con `go.Scatter` + banda de confianza `go.Scatter(fill='tonexty')` — predicción vs. realidad
 - `dcc.Graph` con `go.Bar` horizontal — SHAP values por variable
@@ -569,7 +565,6 @@ Respuesta con fuentes citadas + datos SHAP + recomendación de acción
 - `dash_bootstrap_components` — layout responsivo sin CSS custom
 
 **Datos que consume (endpoints FastAPI):**
-
 ```
 GET /api/v1/predictions?week=18&year=2026&disease=dengue
 GET /api/v1/alerts/active
@@ -730,7 +725,6 @@ FEATURE_WEIGHTS = {
 ```
 
 **Nota técnica sobre los datos de movilidad:**
-
 - El dataset nacional de MinTransporte provee flujos OD **intermunicipales** (origen-destino entre municipios).
 - Se usa como proxy de difusión regional, no intra-urbana.
 - Para Medellín se complementa con datos del Terminal de Transportes.
@@ -844,34 +838,32 @@ config = {
 
 ```typescript
 // /web/app/noticias/page.tsx
-import { NewsCard } from "@/components/NewsCard";
-import { MentionsTimeline } from "@/components/MentionsTimeline";
-import { NewsHeatMap } from "@/components/NewsHeatMap";
-import { SourceStatus } from "@/components/SourceStatus";
+import { NewsCard } from '@/components/NewsCard'
+import { MentionsTimeline } from '@/components/MentionsTimeline'
+import { NewsHeatMap } from '@/components/NewsHeatMap'
+import { SourceStatus } from '@/components/SourceStatus'
 
 // Refresca cada 6 horas con ISR de Next.js
-export const revalidate = 21600;
+export const revalidate = 21600
 
 async function getNews(filters: NewsFilters) {
-  const res = await fetch(
-    `${API_URL}/api/v1/news?${new URLSearchParams(filters)}`,
-  );
-  return res.json();
+    const res = await fetch(`${API_URL}/api/v1/news?${new URLSearchParams(filters)}`)
+    return res.json()
 }
 
 // Los artículos tienen este shape:
 interface NewsArticle {
-  id: string;
-  title: string;
-  source: string; // "La Opinión"
-  source_url: string;
-  published_at: string;
-  disease: "dengue" | "chikungunya" | "malaria" | "zika" | "general";
-  department: string; // "Nariño" — extraído por NER
-  municipality?: string; // Si el NER lo detectó
-  alert_score: number; // 0.0 – 1.0
-  alert_level: "alta" | "media" | "baja";
-  snippet: string; // Primeros 200 chars del artículo
+    id: string
+    title: string
+    source: string               // "La Opinión"
+    source_url: string
+    published_at: string
+    disease: "dengue" | "chikungunya" | "malaria" | "zika" | "general"
+    department: string           // "Nariño" — extraído por NER
+    municipality?: string        // Si el NER lo detectó
+    alert_score: number          // 0.0 – 1.0
+    alert_level: "alta" | "media" | "baja"
+    snippet: string              // Primeros 200 chars del artículo
 }
 ```
 
@@ -947,14 +939,13 @@ interface NewsArticle {
 
 ---
 
-**① Subnotificación estructural en SIVIGILA** ← _El más crítico_
+**① Subnotificación estructural en SIVIGILA** ← *El más crítico*
 
-El modelo aprende de casos _reportados_, no casos _reales_. En zonas rurales la subnotificación puede ser del 50–70% (estimaciones OPS/INS). El sistema solo ve lo que llega al sistema de salud formal.
+El modelo aprende de casos *reportados*, no casos *reales*. En zonas rurales la subnotificación puede ser del 50–70% (estimaciones OPS/INS). El sistema solo ve lo que llega al sistema de salud formal.
 
-_Impacto:_ El modelo subestimará sistemáticamente el riesgo en Amazonía, Orinoquía y Pacífico rural — justo donde la malaria y otras enfermedades tienen mayor carga real.
+*Impacto:* El modelo subestimará sistemáticamente el riesgo en Amazonía, Orinoquía y Pacífico rural — justo donde la malaria y otras enfermedades tienen mayor carga real.
 
-_Mitigación:_
-
+*Mitigación:*
 - Las predicciones en zonas con alta subnotificación histórica se etiquetan con un **factor de corrección** (scaling factor) estimado por departamento a partir de estudios de prevalencia del INS.
 - El dashboard muestra un indicador de "confiabilidad del dato base" por zona: alto (Bogotá, Medellín), medio (capitales departamentales), bajo (municipios rurales sin IPS).
 - El RAG advierte explícitamente al usuario cuando la predicción corresponde a una zona con subnotificación conocida.
@@ -965,10 +956,9 @@ _Mitigación:_
 
 Entre 2007 y 2022 se crearon nuevos municipios (ej: Riosucio en Chocó, varios en Nariño) y se reasignaron códigos DANE. Un `JOIN` directo por código produce municipios fantasma o silencia registros históricos completos.
 
-_Impacto:_ Pérdida silenciosa de datos históricos o duplicación de casos en municipios que cambiaron de código.
+*Impacto:* Pérdida silenciosa de datos históricos o duplicación de casos en municipios que cambiaron de código.
 
-_Mitigación:_
-
+*Mitigación:*
 ```python
 # ETL — tabla de equivalencias DANE (fuente: DIVIPOLA histórico del DANE)
 # Mapea códigos obsoletos al código DANE vigente a 2023
@@ -980,31 +970,29 @@ def normalizar_codigo_dane(df, col_codigo, col_año):
     Reemplaza códigos históricos por su equivalente vigente.
     Registra cuántos registros fueron normalizados para auditoría.
     """
-    df = df.merge(dane_equivalencias,
+    df = df.merge(dane_equivalencias, 
                   left_on=[col_codigo, col_año],
                   right_on=["cod_dane_historico", "año_cambio"],
                   how="left")
     df[col_codigo] = df["cod_dane_vigente"].fillna(df[col_codigo])
     return df
 ```
-
 La tabla DIVIPOLA histórica del DANE es pública y se incluye en `/data/raw/`.
 
 ---
 
 **③ Horizonte de datos insuficiente para zika y chikungunya**
 
-| Enfermedad  | Datos desde | Ciclos epidémicos observados  | Confianza del modelo |
-| ----------- | ----------- | ----------------------------- | -------------------- |
-| Dengue      | 2007        | 8+ ciclos bianuales           | Alta                 |
-| Malaria     | 2007        | Endémica continua             | Alta                 |
-| Chikungunya | 2014        | 2 ciclos                      | Media                |
-| Zika        | 2015        | 1 ciclo relevante (2015–2016) | Baja                 |
+| Enfermedad | Datos desde | Ciclos epidémicos observados | Confianza del modelo |
+|---|---|---|---|
+| Dengue | 2007 | 8+ ciclos bianuales | Alta |
+| Malaria | 2007 | Endémica continua | Alta |
+| Chikungunya | 2014 | 2 ciclos | Media |
+| Zika | 2015 | 1 ciclo relevante (2015–2016) | Baja |
 
-_Impacto:_ El modelo para zika y chikungunya tiene menos datos para aprender patrones de estacionalidad. Las predicciones tienen intervalos de confianza más amplios.
+*Impacto:* El modelo para zika y chikungunya tiene menos datos para aprender patrones de estacionalidad. Las predicciones tienen intervalos de confianza más amplios.
 
-_Mitigación:_
-
+*Mitigación:*
 - Se reporta el intervalo de confianza del 90% en cada predicción — más ancho para chikungunya/zika que para dengue.
 - Prophet usa regularización más fuerte para estas enfermedades (parámetro `changepoint_prior_scale` más bajo).
 - El dashboard muestra una etiqueta de confianza por enfermedad: **Alta / Media / Baja**, visible al usuario.
@@ -1016,10 +1004,9 @@ _Mitigación:_
 
 El dataset de MinSalud (Dataset 4) reporta cobertura por departamento y biológico. Las predicciones de ECOS son a nivel municipal. Aplicar el promedio departamental a todos los municipios es incorrecto — Pasto urbano y un municipio rural de Nariño tienen coberturas radicalmente distintas.
 
-_Impacto:_ Subestimación del riesgo en municipios rurales con cobertura real inferior al promedio departamental.
+*Impacto:* Subestimación del riesgo en municipios rurales con cobertura real inferior al promedio departamental.
 
-_Mitigación:_
-
+*Mitigación:*
 - La variable de vacunación entra al modelo **solo a nivel departamental** (no se extrapola al municipio).
 - Las predicciones municipales usan vacunación del departamento al que pertenecen, documentando esta limitación en el feature store.
 - Se incluye el Índice de Pobreza Multidimensional (IPM) municipal como proxy de acceso a servicios de salud — variable que sí tiene resolución municipal.
@@ -1030,10 +1017,9 @@ _Mitigación:_
 
 RIPS solo captura atenciones del sistema formal de salud (IPS habilitadas). En zonas rurales, una fracción significativa de la población recurre a promotores de salud comunitarios, médicos tradicionales indígenas o simplemente no consulta. RIPS subestima la carga real en las poblaciones más vulnerables.
 
-_Impacto:_ RIPS refuerza el mismo sesgo que SIVIGILA — ambas fuentes capturan el sistema formal. Su "divergencia" como señal de alerta (Dataset 5 vs. Dataset 1) sigue siendo válida, pero su nivel absoluto no refleja la carga real.
+*Impacto:* RIPS refuerza el mismo sesgo que SIVIGILA — ambas fuentes capturan el sistema formal. Su "divergencia" como señal de alerta (Dataset 5 vs. Dataset 1) sigue siendo válida, pero su nivel absoluto no refleja la carga real.
 
-_Mitigación:_
-
+*Mitigación:*
 - RIPS se usa como **señal diferencial** (¿están divergiendo RIPS y SIVIGILA esta semana?), no como estimador de carga absoluta.
 - La divergencia RIPS–SIVIGILA entra al modelo como feature de "subnotificación activa", no como conteo de casos.
 - Se documenta explícitamente en el dashboard que RIPS no incluye sector informal.
@@ -1044,10 +1030,9 @@ _Mitigación:_
 
 El dataset de MinTransporte (Dataset 6) puede corresponder a patrones de movilidad pre-pandemia (2018–2019). Los flujos de transporte intermunicipal cambiaron significativamente durante y después de COVID-19.
 
-_Impacto:_ Los arcos OD del mapa de movilidad pueden no reflejar los patrones actuales, sobreestimando rutas que disminuyeron o ignorando rutas que crecieron.
+*Impacto:* Los arcos OD del mapa de movilidad pueden no reflejar los patrones actuales, sobreestimando rutas que disminuyeron o ignorando rutas que crecieron.
 
-_Mitigación:_
-
+*Mitigación:*
 - Se verifica la fecha de corte del dataset al descargarlo e se registra en los metadatos (`data/raw/movilidad_metadata.json`).
 - Si los datos son pre-2020: la variable de movilidad se pondera con un coeficiente de confianza reducido en XGBoost.
 - Se documenta el año de los datos en el dashboard de movilidad con una etiqueta visible.
@@ -1059,10 +1044,9 @@ _Mitigación:_
 
 Los medios nacionales y regionales cubren desproporcionadamente los eventos en ciudades grandes. Un brote en Quibdó puede generar 1 artículo; el mismo brote en Bogotá o Medellín genera 20. El clasificador NLP detectará más "señales" en hubs urbanos que en zonas endémicas rurales.
 
-_Impacto:_ Exactamente el sesgo inverso al que necesitamos — más señal donde hay menos riesgo real, menos señal donde hay más.
+*Impacto:* Exactamente el sesgo inverso al que necesitamos — más señal donde hay menos riesgo real, menos señal donde hay más.
 
-_Mitigación:_
-
+*Mitigación:*
 - El score de noticias se **normaliza por la densidad mediática histórica** del departamento: un artículo sobre Quibdó vale más (peso mayor) que un artículo sobre Bogotá.
 - Se incluye el boletín del INS (Fuente C) como fuente oficial que cubre todo el territorio con igual peso independientemente del tamaño del municipio.
 - Las noticias contribuyen con peso bajo al modelo (ver Feature Weights en §4.2A). No son una señal primaria.
@@ -1087,15 +1071,13 @@ peso_noticia = lambda dpto: 1 / densidad_mediatica.get(dpto, 0.5)
 **⑧ Período COVID 2020–2021: ruido bidireccional en el target**
 
 Durante COVID-19:
-
 - Dengue y COVID comparten síntomas (fiebre, malestar, dolor de cabeza). Muchos casos de dengue fueron clasificados como COVID y viceversa → **subregistro de dengue en SIVIGILA**.
 - Las restricciones de movilidad redujeron la transmisión vectorial en algunos periodos → **reducción real de casos**, no solo de reporte.
 - Los servicios de salud colapsaron → **reducción de consultas y notificaciones**, no de casos reales.
 
-_Impacto:_ El modelo podría aprender patrones incorrectos del período 2020–2021 si se trata como datos normales.
+*Impacto:* El modelo podría aprender patrones incorrectos del período 2020–2021 si se trata como datos normales.
 
-_Mitigación:_
-
+*Mitigación:*
 ```python
 # Variable dummy en XGBoost — período COVID
 df["periodo_covid"] = df["año"].isin([2020, 2021]).astype(int)
@@ -1105,7 +1087,6 @@ df["periodo_covid"] = df["año"].isin([2020, 2021]).astype(int)
 VALIDATION_YEARS = [2022, 2023]   # años post-COVID, datos confiables
 TRAINING_YEARS   = list(range(2007, 2022))  # incluye COVID con dummy
 ```
-
 El EDA del período COVID se documenta en `crisp-ml/02-data-understanding.ipynb` con análisis explícito de la anomalía.
 
 ---
@@ -1114,12 +1095,12 @@ El EDA del período COVID se documenta en `crisp-ml/02-data-understanding.ipynb`
 
 Sin una definición epidemiológica precisa de "brote", el AUC-ROC, el recall y el accuracy-score no tienen significado porque el threshold de clasificación es arbitrario.
 
-_Definición adoptada por ECOS (alineada con el INS):_
+*Definición adoptada por ECOS (alineada con el INS):*
 
 > **Brote** = semana en que los casos reportados superan el percentil 75 del canal endémico histórico del mismo municipio para la misma semana epidemiológica, calculado sobre los últimos 5 años con datos disponibles, excluyendo años atípicos (2020–2021).
 
 ```python
-def calcular_canal_endemico(serie_historica: pd.Series,
+def calcular_canal_endemico(serie_historica: pd.Series, 
                              semana_epi: int,
                              años_excluidos: list = [2020, 2021]) -> dict:
     """
@@ -1150,11 +1131,10 @@ Esta definición es citable (metodología INS), reproducible y consistente con l
 
 `pytrends` es una librería no oficial que hace scraping de la interfaz web de Google Trends. Google puede bloquearla, cambiar su estructura o añadir CAPTCHAs sin previo aviso.
 
-_Impacto para el concurso:_ Ninguno — funciona estable en demos y desarrollo.
-_Impacto para producción:_ Riesgo de interrupción del servicio sin aviso.
+*Impacto para el concurso:* Ninguno — funciona estable en demos y desarrollo.
+*Impacto para producción:* Riesgo de interrupción del servicio sin aviso.
 
-_Mitigación:_
-
+*Mitigación:*
 - Rate limiting agresivo (1.5s entre requests) para minimizar riesgo de bloqueo.
 - Health check semanal que detecta si pytrends deja de retornar datos.
 - Si falla: el sistema continúa operando con las otras 5 fuentes. Google Trends tiene peso bajo en el modelo (§4.2A), por lo que su ausencia no invalida las predicciones.
@@ -1164,18 +1144,18 @@ _Mitigación:_
 
 ### 8.2 Resumen ejecutivo de sesgos
 
-| #   | Sesgo                                 | Severidad     | ¿Invalida el modelo? | Mitigación                                            |
-| --- | ------------------------------------- | ------------- | -------------------- | ----------------------------------------------------- |
-| ①   | Subnotificación SIVIGILA              | 🔴 Alta       | No — ajustable       | Factor de corrección + etiqueta de confiabilidad      |
-| ②   | Códigos DANE inconsistentes           | 🟠 Media-Alta | Sí si no se corrige  | Tabla DIVIPOLA histórica en ETL                       |
-| ③   | Pocos datos zika/chikungunya          | 🟠 Media      | Parcialmente         | IC más ancho + etiqueta de confianza                  |
-| ④   | Vacunación solo departamental         | 🟡 Media      | No                   | Documentado + IPM municipal como proxy                |
-| ⑤   | RIPS excluye sector informal          | 🟡 Media      | No                   | RIPS como señal diferencial, no absoluta              |
-| ⑥   | Movilidad posiblemente desactualizada | 🟡 Media      | No                   | Fecha de corte visible + peso reducido si pre-2020    |
-| ⑦   | Sesgo mediático urbano en noticias    | 🟡 Media      | No                   | Peso inversamente proporcional a densidad mediática   |
-| ⑧   | Ruido COVID 2020–2021                 | 🟠 Media      | No si se maneja      | Dummy variable + excluir de validation set            |
-| ⑨   | Definición de brote ambigua           | 🔴 Alta       | Sí si no se define   | Definición canal endémico INS, citable y reproducible |
-| ⑩   | pytrends no es API oficial            | 🟢 Baja       | No                   | Rate limiting + fallback a otras fuentes              |
+| # | Sesgo | Severidad | ¿Invalida el modelo? | Mitigación |
+|---|---|---|---|---|
+| ① | Subnotificación SIVIGILA | 🔴 Alta | No — ajustable | Factor de corrección + etiqueta de confiabilidad |
+| ② | Códigos DANE inconsistentes | 🟠 Media-Alta | Sí si no se corrige | Tabla DIVIPOLA histórica en ETL |
+| ③ | Pocos datos zika/chikungunya | 🟠 Media | Parcialmente | IC más ancho + etiqueta de confianza |
+| ④ | Vacunación solo departamental | 🟡 Media | No | Documentado + IPM municipal como proxy |
+| ⑤ | RIPS excluye sector informal | 🟡 Media | No | RIPS como señal diferencial, no absoluta |
+| ⑥ | Movilidad posiblemente desactualizada | 🟡 Media | No | Fecha de corte visible + peso reducido si pre-2020 |
+| ⑦ | Sesgo mediático urbano en noticias | 🟡 Media | No | Peso inversamente proporcional a densidad mediática |
+| ⑧ | Ruido COVID 2020–2021 | 🟠 Media | No si se maneja | Dummy variable + excluir de validation set |
+| ⑨ | Definición de brote ambigua | 🔴 Alta | Sí si no se define | Definición canal endémico INS, citable y reproducible |
+| ⑩ | pytrends no es API oficial | 🟢 Baja | No | Rate limiting + fallback a otras fuentes |
 
 ---
 
@@ -1191,42 +1171,42 @@ Esta definición determina el threshold de clasificación binaria (Y=1 / Y=0) so
 
 ### 9.1 Métricas del modelo predictivo
 
-| Métrica               | Definición                                                 | Meta ECOS                   |
-| --------------------- | ---------------------------------------------------------- | --------------------------- |
-| MAE                   | Error absoluto medio en casos predichos                    | < 15 casos/semana/municipio |
-| RMSE                  | Error cuadrático medio                                     | < 30 casos/semana/municipio |
-| AUC-ROC               | Clasificación brote/no-brote (umbral = p75 canal endémico) | > 0.82                      |
-| Sensibilidad (recall) | % de brotes reales detectados                              | > 0.80 (prioridad)          |
-| Anticipación promedio | Semanas de adelanto vs. SIVIGILA oficial                   | ≥ 2.0 semanas               |
-| Falsa alarma rate     | % de alertas que no se materializaron en brote             | < 25%                       |
+| Métrica | Definición | Meta ECOS |
+|---|---|---|
+| MAE | Error absoluto medio en casos predichos | < 15 casos/semana/municipio |
+| RMSE | Error cuadrático medio | < 30 casos/semana/municipio |
+| AUC-ROC | Clasificación brote/no-brote (umbral = p75 canal endémico) | > 0.82 |
+| Sensibilidad (recall) | % de brotes reales detectados | > 0.80 (prioridad) |
+| Anticipación promedio | Semanas de adelanto vs. SIVIGILA oficial | ≥ 2.0 semanas |
+| Falsa alarma rate | % de alertas que no se materializaron en brote | < 25% |
 
 > **Nota de salud pública:** En epidemiología, una falsa alarma es mucho menos costosa que un brote no detectado. Por eso priorizamos sensibilidad (recall) sobre precisión.
 
 **Confianza del modelo por enfermedad** (derivada del volumen histórico disponible):
 
-| Enfermedad  | Datos desde | Meta AUC-ROC | IC predicción |
-| ----------- | ----------- | ------------ | ------------- |
-| Dengue      | 2007        | > 0.85       | ±12%          |
-| Malaria     | 2007        | > 0.83       | ±15%          |
-| Chikungunya | 2014        | > 0.78       | ±22%          |
-| Zika        | 2015        | > 0.72       | ±30%          |
+| Enfermedad | Datos desde | Meta AUC-ROC | IC predicción |
+|---|---|---|---|
+| Dengue | 2007 | > 0.85 | ±12% |
+| Malaria | 2007 | > 0.83 | ±15% |
+| Chikungunya | 2014 | > 0.78 | ±22% |
+| Zika | 2015 | > 0.72 | ±30% |
 
 Las metas son diferenciadas porque pretender el mismo AUC para zika (1 ciclo epidémico observado) que para dengue (8+ ciclos) sería epidemiológicamente deshonesto.
 
 ### 9.2 Métricas del sistema de noticias
 
-| Métrica                                                   | Meta         |
-| --------------------------------------------------------- | ------------ |
-| Precisión del clasificador (noticia epidemiológica sí/no) | > 0.90       |
-| Exactitud NER municipio/departamento                      | > 0.85       |
-| Latencia de scraping a visualización                      | < 30 minutos |
+| Métrica | Meta |
+|---|---|
+| Precisión del clasificador (noticia epidemiológica sí/no) | > 0.90 |
+| Exactitud NER municipio/departamento | > 0.85 |
+| Latencia de scraping a visualización | < 30 minutos |
 
 ### 9.3 Métricas de tendencias
 
-| Métrica                               | Meta                               |
-| ------------------------------------- | ---------------------------------- |
-| Correlación Tendencia(t-2) ↔ Casos(t) | > 0.60 Pearson                     |
-| Detección anticipada de spikes        | ≥ 1 semana antes del pico SIVIGILA |
+| Métrica | Meta |
+|---|---|
+| Correlación Tendencia(t-2) ↔ Casos(t) | > 0.60 Pearson |
+| Detección anticipada de spikes | ≥ 1 semana antes del pico SIVIGILA |
 
 ---
 
@@ -1247,12 +1227,12 @@ Las metas son diferenciadas porque pretender el mismo AUC para zika (1 ciclo epi
 
 ### 10.3 Escalabilidad
 
-| Dimensión                     | Descripción                                                                     |
-| ----------------------------- | ------------------------------------------------------------------------------- |
+| Dimensión | Descripción |
+|---|---|
 | **Horizontal (enfermedades)** | Leptospirosis, leishmaniasis, hepatitis A, COVID-19 — cualquier evento SIVIGILA |
-| **Vertical (volumen)**        | Arquitectura Spark lista para el data lake completo del INS                     |
-| **Regional (países)**         | Replicable en Perú, Ecuador, Brasil con sistemas similares                      |
-| **Temporal (sostenibilidad)** | Diseñado para transferencia al INS como herramienta de uso continuo             |
+| **Vertical (volumen)** | Arquitectura Spark lista para el data lake completo del INS |
+| **Regional (países)** | Replicable en Perú, Ecuador, Brasil con sistemas similares |
+| **Temporal (sostenibilidad)** | Diseñado para transferencia al INS como herramienta de uso continuo |
 
 ---
 
@@ -1303,29 +1283,29 @@ Las metas son diferenciadas porque pretender el mismo AUC para zika (1 ciclo epi
 
 ## 12. Criterios del Concurso y Puntuación Estimada
 
-| Criterio                    | Pts máximos | ECOS       | Justificación                                                                                                                                              |
-| --------------------------- | ----------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Innovación y creatividad    | 15          | **14–15**  | Google Trends + noticias en tiempo real + RAG conversacional + mapa OD movilidad. Diferencial claro frente a análisis descriptivos.                        |
-| Uso de datos abiertos       | 20          | **19–20**  | 6 datasets datos.gov.co incluyendo SIVIGILA 15 años. Movilidad, vacunación, RIPS, clima. Perfectamente alineado con Reto 1 y Hoja de Ruta Salud 2025-2026. |
-| Análisis y rigor técnico    | 15          | **14–15**  | PySpark + CRISP-ML + walk-forward validation sin data leakage + SHAP + documentación de limitaciones.                                                      |
-| Tecnologías emergentes — IA | 20          | **19–20**  | Predictivo (XGBoost + Prophet) + generativo (RAG LLaMA 3) + explicabilidad (SHAP) + NLP clasificador noticias (spaCy).                                     |
-| Impacto y escalabilidad     | 20          | **18–20**  | Impacto directo MinSalud/INS. Escalable a otros eventos SIVIGILA y otros países. Cuantificación económica del impacto.                                     |
-| Diseño y usabilidad         | 10          | **9–10**   | Power BI profesional + Next.js moderno + chat RAG + monitor de noticias. Listo para uso institucional.                                                     |
-| **Total estimado**          | **100**     | **93–100** |                                                                                                                                                            |
+| Criterio | Pts máximos | ECOS | Justificación |
+|---|---|---|---|
+| Innovación y creatividad | 15 | **14–15** | Google Trends + noticias en tiempo real + RAG conversacional + mapa OD movilidad. Diferencial claro frente a análisis descriptivos. |
+| Uso de datos abiertos | 20 | **19–20** | 6 datasets datos.gov.co incluyendo SIVIGILA 15 años. Movilidad, vacunación, RIPS, clima. Perfectamente alineado con Reto 1 y Hoja de Ruta Salud 2025-2026. |
+| Análisis y rigor técnico | 15 | **14–15** | PySpark + CRISP-ML + walk-forward validation sin data leakage + SHAP + documentación de limitaciones. |
+| Tecnologías emergentes — IA | 20 | **19–20** | Predictivo (XGBoost + Prophet) + generativo (RAG LLaMA 3) + explicabilidad (SHAP) + NLP clasificador noticias (spaCy). |
+| Impacto y escalabilidad | 20 | **18–20** | Impacto directo MinSalud/INS. Escalable a otros eventos SIVIGILA y otros países. Cuantificación económica del impacto. |
+| Diseño y usabilidad | 10 | **9–10** | Power BI profesional + Next.js moderno + chat RAG + monitor de noticias. Listo para uso institucional. |
+| **Total estimado** | **100** | **93–100** | |
 
 ---
 
 ## 13. Ética y Privacidad
 
-| Principio                              | Implementación en ECOS                                                                                   |
-| -------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| **Sin datos personales**               | Todos los datasets son agregados (municipio/departamento). Sin información individual de pacientes.      |
-| **Scraping ético**                     | Respeto estricto de `robots.txt`. Solo feeds RSS públicos. Sin redes sociales. Sin datos personales.     |
-| **Google Trends anonimizado**          | Solo tendencias agregadas publicadas por Google. Sin datos de usuarios individuales.                     |
-| **Transparencia algorítmica**          | SHAP en cada predicción. Código open-source. No hay caja negra.                                          |
-| **Herramienta de apoyo, no sustituto** | El sistema genera recomendaciones; la decisión final es siempre humana.                                  |
-| **Reproducibilidad total**             | Código, datos procesados y parámetros publicados en GitHub para verificación independiente.              |
-| **Propiedad intelectual**              | Todo el código es de autoría original. Librerías con licencias MIT/Apache 2.0. Datos en dominio público. |
+| Principio | Implementación en ECOS |
+|---|---|
+| **Sin datos personales** | Todos los datasets son agregados (municipio/departamento). Sin información individual de pacientes. |
+| **Scraping ético** | Respeto estricto de `robots.txt`. Solo feeds RSS públicos. Sin redes sociales. Sin datos personales. |
+| **Google Trends anonimizado** | Solo tendencias agregadas publicadas por Google. Sin datos de usuarios individuales. |
+| **Transparencia algorítmica** | SHAP en cada predicción. Código open-source. No hay caja negra. |
+| **Herramienta de apoyo, no sustituto** | El sistema genera recomendaciones; la decisión final es siempre humana. |
+| **Reproducibilidad total** | Código, datos procesados y parámetros publicados en GitHub para verificación independiente. |
+| **Propiedad intelectual** | Todo el código es de autoría original. Librerías con licencias MIT/Apache 2.0. Datos en dominio público. |
 
 ---
 
@@ -1404,7 +1384,7 @@ TARGET:
 
 ---
 
-_ECOS — Early Control and Observation System_
-_Concurso Datos al Ecosistema 2026 — IA para Colombia_
-_Desarrollado con datos abiertos de datos.gov.co_
-_Licencia MIT · Código abierto · Transferible al INS y MinSalud_
+*ECOS — Early Control and Observation System*
+*Concurso Datos al Ecosistema 2026 — IA para Colombia*
+*Desarrollado con datos abiertos de datos.gov.co*
+*Licencia MIT · Código abierto · Transferible al INS y MinSalud*
