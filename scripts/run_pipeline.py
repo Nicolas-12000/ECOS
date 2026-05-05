@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Master pipeline script to automate ECOS data processing.
 
-Executes download, curation, validation, and (optional) loading steps.
+Executes download, curation, validation, and loading steps.
 """
 
 import argparse
@@ -54,32 +54,24 @@ def main():
             cmd.append("--force")
         if not run_step("Data Extraction", cmd):
             sys.exit(1)
-    else:
-        print("\n[skip] Data Extraction")
 
     # 1b. Signals
     if not args.skip_signals:
         cmd = [python_exe, str(SCRIPTS_DIR / "fetch_signals.py")]
         if not run_step("Signals Scraping", cmd):
             sys.exit(1)
-    else:
-        print("\n[skip] Signals Scraping")
 
     # 2. Curation
     if not args.skip_curation:
-        cmd = [python_exe, str(SCRIPTS_DIR / "curate_weekly_spark.py"), "--features", "vaccination"]
+        cmd = [python_exe, str(SCRIPTS_DIR / "curate_weekly_spark.py")]
         if not run_step("Spark Curation", cmd):
             sys.exit(1)
-    else:
-        print("\n[skip] Spark Curation")
 
     # 3. Validation
     if not args.skip_validation:
         cmd = [python_exe, str(SCRIPTS_DIR / "validate_curated_spark.py")]
         if not run_step("Data Validation", cmd):
             sys.exit(1)
-    else:
-        print("\n[skip] Data Validation")
 
     # 3b. Model Training
     if args.train_model:
@@ -90,16 +82,12 @@ def main():
     # 4. Loading
     if not args.skip_load:
         if args.db_url:
-            cmd = [python_exe, str(SCRIPTS_DIR / "load_curated_to_supabase.py"), "--truncate"]
-            # We pass the DB URL via environment if not already there, or CLI doesn't support it directly in a clean way?
-            # load_curated_to_supabase.py supports --database-url
+            cmd = [python_exe, str(SCRIPTS_DIR / "supabase_pipeline.py"), "--truncate"]
             cmd.extend(["--database-url", args.db_url])
             if not run_step("Supabase Loading", cmd):
                 sys.exit(1)
         else:
-            print("\n[warn] Skipping Supabase Loading: No database URL provided (set SUPABASE_DB_URL or use --db-url)")
-    else:
-        print("\n[skip] Supabase Loading")
+            print("\n[warn] Skipping Supabase Loading: No database URL provided")
 
     print(f"\n{'='*60}")
     print(" PIPELINE COMPLETED SUCCESSFULLY")

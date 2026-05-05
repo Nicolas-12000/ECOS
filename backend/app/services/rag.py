@@ -19,7 +19,7 @@ def _build_context(sources: Iterable) -> str:
         title = getattr(src, "title", "doc")
         excerpt = getattr(src, "excerpt", "")
         if excerpt:
-            chunks.append(f"- {title}: {excerpt}")
+            chunks.append(f"- [{title}]: {excerpt}")
     return "\n".join(chunks)
 
 
@@ -29,18 +29,22 @@ def generate_answer(question: str, sources: Iterable, fallback: str) -> str:
 
     context = _build_context(sources)
     system = (
-        "Eres el asistente ECOS. Responde en espanol, breve y operativo. "
-        "Toda tu informacion proviene de la base de datos oficial en Supabase. "
-        "Usa solo el contexto y los hechos entregados. Si faltan datos, dilo."
+        "Eres ECOS AI, un experto en vigilancia epidemiológica de Colombia. "
+        "Tu misión es proporcionar análisis precisos basados únicamente en los datos entregados. "
+        "Reglas:\n"
+        "1. Cita siempre la fuente (ej: [historial_municipio], [doc]).\n"
+        "2. Si los datos sugieren un brote (casos > umbral), destaca la alerta.\n"
+        "3. Si no tienes datos suficientes para responder, dilo claramente.\n"
+        "4. Mantén un tono profesional, técnico y operativo.\n"
+        "5. Responde en español."
     )
     user = (
-        "Pregunta:\n"
-        f"{question}\n\n"
-        "Contexto documental (puede estar incompleto):\n"
+        f"Pregunta del usuario: {question}\n\n"
+        "--- CONTEXTO RECUPERADO ---\n"
         f"{context}\n\n"
-        "Hechos operativos preliminares:\n"
+        "--- DATOS OPERATIVOS (API) ---\n"
         f"{fallback}\n\n"
-        "Devuelve una respuesta clara, con una accion sugerida si aplica."
+        "Genera una respuesta estructurada que analice la situación y sugiera acciones si es necesario."
     )
 
     payload = {
@@ -50,7 +54,7 @@ def generate_answer(question: str, sources: Iterable, fallback: str) -> str:
             {"role": "user", "content": user},
         ],
         "temperature": 0.2,
-        "max_tokens": 600,
+        "max_tokens": 800,
     }
     headers = {"Authorization": f"Bearer {settings.groq_api_key}"}
 

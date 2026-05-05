@@ -308,18 +308,19 @@ def _search_knowledge_base(question: str, limit: int = 3) -> list[ChatSource]:
 
 
 def _document_snippets(question: str, limit: int = 3) -> list[ChatSource]:
-    db_sources = _search_knowledge_base(question, limit=limit)
-    if db_sources:
-        return db_sources
+    """Recupera fragmentos de documentos relevantes usando búsqueda semántica o textual."""
+    # Intentar búsqueda semántica (vectores en Supabase) primero
     if semantic_available():
         try:
             hits = semantic_search(question, k=limit)
-            sources = [ChatSource(title=Path(s).name, excerpt=e, source_type="doc") for s, e in hits]
-            if sources:
-                return sources
-        except Exception:
-            pass
-    return []
+            if hits:
+                return [ChatSource(title=s, excerpt=e, source_type="doc") for s, e in hits]
+        except Exception as e:
+            logger.error(f"Semantic search error: {e}")
+
+    # Fallback a búsqueda textual (TSVECTOR/ILIKE)
+    db_sources = _search_knowledge_base(question, limit=limit)
+    return db_sources
 
 
 # ---------------------------------------------------------------------------

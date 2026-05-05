@@ -30,6 +30,68 @@ VALID_DISEASES = {"dengue", "chikungunya", "zika", "malaria"}
 OUTBREAK_THRESHOLD = 5.0
 
 
+def calculate_endemic_channel(
+    municipio_code: str,
+    disease: str,
+    epi_week: int,
+    years_window: int = 5,
+    years_excluded: set[int] | None = None,
+) -> dict:
+    """Compute endemic channel percentiles for a municipality and ISO week."""
+    if years_excluded is None:
+        years_excluded = {2020, 2021}
+
+    df = _load_df()
+    if "week_start_date" not in df.columns:
+        return {"p25": None, "p50": None, "p75": None, "p90": None, "n": 0}
+
+    subset = df[
+        (df["municipio_code"] == municipio_code)
+        & (df["disease"] == disease)
+        & (df["epi_week"] == epi_week)
+        & (~df["epi_year"].isin(years_excluded))
+    ].copy()
+
+    if subset.empty:
+        return {"p25": None, "p50": None, "p75": None, "p90": None, "n": 0}
+
+    max_year = int(subset["epi_year"].max())
+    min_year = max(int(subset["epi_year"].min()), max_year - years_window + 1)
+    subset = subset[(subset["epi_year"] >= min_year) & (subset["epi_year"] <= max_year)]
+
+    series = pd.to_numeric(subset["cases_total"], errors="coerce").dropna()
+    if series.empty:
+        return {"p25": None, "p50": None, "p75": None, "p90": None, "n": 0}
+
+    return {
+        "p25": float(series.quantile(0.25)),
+        "p50": float(series.quantile(0.50)),
+        "p75": float(series.quantile(0.75)),
+        "p90": float(series.quantile(0.90)),
+        "n": int(series.shape[0]),
+    }
+
+
+def classify_endemic_risk(cases_total: float, endemic_channel: dict) -> str:
+    """Translate endemic percentiles into a qualitative risk level."""
+    p75 = endemic_channel.get("p75")
+    p90 = endemic_channel.get("p90")
+    if p75 is None or p90 is None:
+        return (
+            "critical"
+            if cases_total >= OUTBREAK_THRESHOLD * 3
+            else "high" if cases_total >= OUTBREAK_THRESHOLD * 2
+            else "moderate"
+        )
+    if cases_total >= p90:
+        return "critical"
+    if cases_total >= p75:
+        return "high"
+    if cases_total >= endemic_channel.get("p50", p75):
+        return "moderate"
+    return "low"
+
+
 @lru_cache(maxsize=1)
 def _load_df() -> pd.DataFrame:
     """Carga el dataset curado una vez y lo cachea en memoria."""
@@ -128,3 +190,26 @@ def get_last_known_features(municipio_code: str, disease: str) -> pd.Series | Op
     if subset.empty:
         return None
     return subset.iloc[0]
+
+
+def get_mobility(municipio_code: str, limit: int = 52) -> pd.DataFrame:
+    """Retorna datos de movilidad in/out para un municipio."""
+    df = _load_df()
+    if "mobility_in" not in df.columns:
+        return pd.DataFrame()
+        
+    mask = (df["municipio_code"] == municipio_code)
+    # La movilidad es la misma para todas las enfermedades en un municipio/semana
+    subset = (
+        df[mask]
+        .groupby(["epi_year", "epi_week", "week_start_date", "municipio_code"])
+        .agg({
+            "mobility_in": "first",
+            "mobility_out": "first",
+            "mobility_index": "first"
+        })
+        .reset_index()
+        .sort_values("week_start_date", ascending=False)
+        .head(limit)
+    )
+    return subset

@@ -1,63 +1,63 @@
 ---
-version: alpha
-name: ECOS
-description: Visual identity for the ECOS national early warning platform for epidemiological risk in Colombia.
+name: Heritage
+description: Architectural Minimalism meets Journalistic Gravitas for epidemiological surveillance
 colors:
-  background: "#F7F1E8"
-  background-soft: "#EFE6D8"
-  surface: "#FFFDF9"
-  foreground: "#1C1A17"
-  foreground-muted: "#64605A"
-  border: "#D7CABB"
-  primary: "#1C1A17"
-  primary-contrast: "#FFFDF9"
-  accent: "#8C441A"
-  accent-soft: "#E8B48D"
-  signal: "#16725A"
-  warning: "#7A4D0F"
-  danger: "#9B2D2D"
+  primary: "#1A1C1E"
+  secondary: "#6C7278"
+  tertiary: "#B8422E"
+  tertiary-hover: "#9E3827"
+  tertiary-alpha: "rgba(184, 66, 46, 0.08)"
+  neutral: "#F7F5F2"
+  surface: "#FFFFFF"
+  surface-hover: "#F0EEEA"
+  surface-elevated: "#FFFFFF"
+  border: "#E5E2DC"
+  border-strong: "#D1CEC8"
+  danger: "#D92D20"
+  danger-alpha: "rgba(217, 45, 32, 0.08)"
+  warning: "#DC6803"
+  warning-alpha: "rgba(220, 104, 3, 0.08)"
+  success: "#039855"
+  success-alpha: "rgba(3, 152, 85, 0.08)"
 typography:
   h1:
-    fontFamily: Geist
-    fontSize: 4rem
-    fontWeight: 600
-    lineHeight: 1
-    letterSpacing: -0.04em
-  h2:
-    fontFamily: Geist
-    fontSize: 2.5rem
-    fontWeight: 600
-    lineHeight: 1.08
-    letterSpacing: -0.03em
-  h3:
-    fontFamily: Geist
-    fontSize: 1.5rem
-    fontWeight: 600
-    lineHeight: 1.2
+    fontFamily: Public Sans
+    fontSize: 3rem
+    fontWeight: 700
+    lineHeight: 1.1
     letterSpacing: -0.02em
+  h2:
+    fontFamily: Public Sans
+    fontSize: 2rem
+    fontWeight: 700
+    lineHeight: 1.2
+    letterSpacing: -0.01em
+  h3:
+    fontFamily: Public Sans
+    fontSize: 1.25rem
+    fontWeight: 600
+    lineHeight: 1.3
   body-md:
-    fontFamily: Geist
+    fontFamily: Public Sans
     fontSize: 1rem
     fontWeight: 400
-    lineHeight: 1.65
-    letterSpacing: 0
-  body-lg:
-    fontFamily: Geist
-    fontSize: 1.125rem
+    lineHeight: 1.6
+  body-sm:
+    fontFamily: Public Sans
+    fontSize: 0.875rem
     fontWeight: 400
-    lineHeight: 1.7
-    letterSpacing: 0
+    lineHeight: 1.5
   label-caps:
-    fontFamily: Geist Mono
+    fontFamily: Space Grotesk
     fontSize: 0.75rem
-    fontWeight: 600
-    lineHeight: 1
-    letterSpacing: 0.22em
+    fontWeight: 500
+    letterSpacing: 0.08em
+    textTransform: uppercase
 rounded:
-  sm: 8px
-  md: 16px
-  lg: 24px
-  xl: 32px
+  sm: 6px
+  md: 10px
+  lg: 16px
+  full: 9999px
 spacing:
   xs: 4px
   sm: 8px
@@ -65,156 +65,159 @@ spacing:
   lg: 24px
   xl: 32px
   2xl: 48px
+  3xl: 64px
+  section: 96px
 components:
-  page-background:
-    backgroundColor: "{colors.background}"
-  section-band:
-    backgroundColor: "{colors.background-soft}"
-    textColor: "{colors.foreground}"
-  hero-surface:
-    backgroundColor: "{colors.surface}"
-    textColor: "{colors.foreground}"
-    rounded: "{rounded.xl}"
-    padding: "{spacing.2xl}"
-  meta-text:
-    textColor: "{colors.foreground-muted}"
   button-primary:
-    backgroundColor: "{colors.primary}"
-    textColor: "{colors.primary-contrast}"
-    rounded: "999px"
-    padding: "12px 24px"
-  button-secondary:
-    backgroundColor: "{colors.surface}"
-    textColor: "{colors.foreground}"
-    rounded: "999px"
-    padding: "12px 24px"
-  accent-chip:
-    backgroundColor: "{colors.surface}"
-    textColor: "{colors.accent}"
-    rounded: "999px"
-    padding: "8px 16px"
-  accent-soft-chip:
-    backgroundColor: "{colors.accent-soft}"
+    backgroundColor: "{colors.tertiary}"
+    textColor: "#FFFFFF"
+    rounded: "{rounded.md}"
+    padding: 12px 24px
+  button-primary-hover:
+    backgroundColor: "{colors.tertiary-hover}"
+  button-outline:
+    backgroundColor: "transparent"
     textColor: "{colors.primary}"
-    rounded: "999px"
-    padding: "8px 16px"
-  signal-chip:
-    backgroundColor: "{colors.signal}"
-    textColor: "{colors.primary-contrast}"
-    rounded: "999px"
-    padding: "8px 16px"
-  warning-badge:
-    backgroundColor: "{colors.surface}"
-    textColor: "{colors.warning}"
-    rounded: "999px"
-    padding: "8px 16px"
-  warning-chip:
-    backgroundColor: "{colors.primary}"
-    textColor: "{colors.primary-contrast}"
-    rounded: "999px"
-    padding: "8px 16px"
-  danger-chip:
-    backgroundColor: "{colors.danger}"
-    textColor: "{colors.primary-contrast}"
-    rounded: "999px"
-    padding: "8px 16px"
+    rounded: "{rounded.md}"
+    padding: 12px 24px
   card:
     backgroundColor: "{colors.surface}"
-    textColor: "{colors.foreground}"
-    rounded: "{rounded.lg}"
-    padding: "20px"
-  divider:
-    backgroundColor: "{colors.border}"
-    height: "1px"
-    width: "100%"
+    textColor: "{colors.primary}"
+    rounded: "{rounded.md}"
+    padding: 24px
+  navbar:
+    backgroundColor: "{colors.neutral}"
+    textColor: "{colors.primary}"
+    height: 64px
 ---
 
 ## Overview
 
-ECOS is not a generic SaaS dashboard. The UI should feel like a public-interest instrument: calm, authoritative, and legible under pressure. The visual language mixes editorial seriousness with operational clarity so decision-makers can scan risk quickly without losing context.
+**Heritage** is a design language for institutional, data-driven interfaces. It evokes the visual gravitas of a premium broadsheet — warm limestone foundations, deep ink headlines, and a single accent that commands attention without screaming.
 
-The interface should avoid glossy fintech styling, saturated gradients, and decorative motion that competes with the data. Warm neutrals, deep ink typography, and a single amber accent carry the brand. Use green only for positive signal states and red only for risk or alerts.
+ECOS is a national epidemiological surveillance platform for Colombia. The UI must feel **authoritative but approachable** — like a well-designed government publication that a health secretary would trust and a data analyst would enjoy using.
+
+The design intentionally avoids the "IA look" (dark gradients, neon accents, glowing borders). Instead, it channels:
+- **Architectural minimalism:** Clean lines, generous whitespace, restrained palette
+- **Journalistic gravitas:** Clear typographic hierarchy, data-first layouts
+- **Institutional warmth:** Limestone tones over cold whites, clay over cold reds
 
 ## Colors
 
-The palette is intentionally restrained. Most screens should be built from neutrals, with accent color reserved for calls to action and highlighted risk indicators.
+The palette is rooted in high-contrast neutrals and a single accent color.
 
-- **Background (#F7F1E8):** Main canvas. Slightly warm so the product feels human and public-facing.
-- **Background soft (#EFE6D8):** Secondary canvas for stacked panels and subtle separation.
-- **Surface (#FFFDF9):** Cards, panels, and elevated content areas.
-- **Foreground (#1C1A17):** Primary text, headings, and core UI chrome.
-- **Foreground muted (#64605A):** Metadata, labels, helper text, and secondary labels.
-- **Border (#D7CABB):** Thin separators and panel outlines.
-- **Primary (#1C1A17):** Primary action color for strong buttons and key labels.
-- **Accent (#A85822):** The only warm interaction accent. Use sparingly for primary CTAs and emphasis.
-- **Signal (#16725A):** Supportive positive-state color for stability or low-risk indicators.
-- **Warning (#A86B16):** Medium-risk or attention state.
-- **Danger (#9B2D2D):** High-risk state, outbreak thresholds, and urgent alerts.
+- **Primary (#1A1C1E):** Deep ink for headlines, core text, and primary UI elements. The foundation of all typography.
+- **Secondary (#6C7278):** Sophisticated slate for body copy, borders, captions, metadata. Never competes with primary.
+- **Tertiary (#B8422E):** "Boston Clay" — the sole driver of user interaction. Buttons, links, focus states, and alert accents. Used sparingly: every instance means "act on this."
+- **Neutral (#F7F5F2):** Warm limestone foundation. The page background. Softer than pure white, warmer than gray. This is the canvas that makes everything else feel premium.
+- **Surface (#FFFFFF):** Cards, panels, elevated content. Pure white creates a subtle lift against the limestone background.
+
+### Alert Colors (Epidemiological Context)
+
+- **Danger (#D92D20):** Outbreak confirmed, critical alerts — `🔴 ALERTA ALTA`
+- **Warning (#DC6803):** Surveillance, elevated indicators — `🟡 VIGILANCIA`
+- **Success (#039855):** Normal range, no alert — `🟢 ESTABLE`
+
+These map directly to the epidemiological alert levels used by INS Colombia.
 
 ## Typography
 
-Typography should read as concise and institutional. Headlines are compact and confident, while body text stays open enough for dense analytical content.
+Two fonts, one voice:
 
-- **H1 and H2:** Large, tight, and editorial. Use for the main statement and key section titles.
-- **H3:** Short functional headings for cards, panels, and module labels.
-- **Body text:** Prefer readable line length over compactness. Keep paragraphs calm and legible.
-- **Label caps:** Use for status chips, tags, and small system labels only.
+- **Public Sans** — The workhorse. Used for all body copy, headings, and interface text. A neutral, professional geometric sans-serif from the US Web Design System. It reads clean at every size.
+- **Space Grotesk** — The accent voice. Used exclusively for `UPPERCASE LABELS`, technical metadata, and system indicators. Its geometric personality adds a subtle "data console" quality when used sparingly.
+
+### Rules
+
+1. Headlines use Public Sans 700, tracking tight (-0.02em). The density signals authority.
+2. Body text uses Public Sans 400 at 1rem/1.6. Generous line-height for readability.
+3. Labels use Space Grotesk 500, UPPERCASE, tracking wide (0.08em). This is the "system voice."
+4. Never use bold (700) for body text. Hierarchy comes from size and color, not weight.
+5. Maximum two font weights per page: 400 (body) and 700 (headlines). Exception: 600 for card titles.
 
 ## Layout
 
-The default structure is a single dominant hero area with a supporting insight panel. Use generous spacing, clear hierarchy, and a maximum content width that keeps the page from feeling crowded.
+### Spacing Philosophy
 
-- Prefer two-column layouts for desktop, collapsing to a single column on small screens.
-- Keep vertical rhythm consistent using 8px and 16px increments.
-- Separate dense data modules with soft borders and low-contrast surfaces rather than heavy shadows.
-- Reserve full-width sections for high-level summaries and critical signals.
+The spacing system follows an 8px base with intentional jumps:
+
+- **Within cards:** 8–16px (tight, data-dense)
+- **Between cards:** 16–24px (breathing room)
+- **Between sections:** 48–96px (cinematic pacing)
+
+Each section is a distinct "scene" on the page. The generous section spacing creates a sense of editorial pacing — the user scrolls through a narrative, not a wall of data.
+
+### Container
+
+- Max width: 1200px, centered
+- Page padding: 16px (mobile), 24px (tablet), 32px (desktop)
+
+### Grid
+
+- Feature cards: 2-column grid (desktop), single column (mobile)
+- Data cards: 3-column grid (desktop), 2-column (tablet), single (mobile)
+- Breakpoint: 768px (md), 1024px (lg)
 
 ## Elevation & Depth
 
-Depth should be subtle. The product is not trying to feel playful or glossy.
+Heritage uses **subtle elevation**, not dramatic shadows:
 
-- Use minimal shadow on cards and action chips.
-- Prefer border contrast and surface contrast over large blur shadows.
-- Higher elevation is reserved for overlays, not ordinary content.
+| Level | Treatment | Use |
+|-------|-----------|-----|
+| Level 0 (Flat) | No shadow, border `#E5E2DC` | Default cards, containers |
+| Level 1 (Lifted) | `0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06)` | Interactive cards, hover |
+| Level 2 (Elevated) | `0 4px 12px rgba(0,0,0,0.06), 0 2px 4px rgba(0,0,0,0.04)` | Chat window, modals |
+| Level 3 (Floating) | `0 12px 40px rgba(0,0,0,0.08)` | Floating button, tooltips |
+
+Shadows use pure black at very low opacity (4–8%). The effect is barely perceptible but creates a professional sense of depth without the "material design" heaviness.
 
 ## Shapes
 
-ECOS should feel rounded but not soft in a consumer-app way.
-
-- Buttons use full pill radius.
-- Cards use medium to large radius to keep the interface calm and approachable.
-- Avoid irregular or highly decorative shapes.
+- **Cards & containers:** `10px` radius — soft enough to feel modern, sharp enough to feel institutional
+- **Buttons:** `10px` radius for standard, `9999px` for pill-shaped CTAs
+- **Input fields:** `10px` radius, `1px solid #E5E2DC` border
+- **Badges:** `6px` radius — tighter, more utilitarian
 
 ## Components
 
 ### Buttons
 
-- Primary button: dark background, light text, compact pill shape.
-- Secondary button: light surface with border and dark text.
-- Hover states should change contrast slightly, not introduce bright glows.
+Primary buttons are Boston Clay on white text. They are the only element with the tertiary color as background. This makes them impossible to miss.
+
+Outline buttons have a transparent background with a visible border. They are the secondary action — present but not demanding.
+
+Ghost buttons have no border or background. Used for tertiary actions (close, dismiss, icon actions).
 
 ### Cards
 
-- Cards are used for indicators, explanation panels, and summary modules.
-- Card content should start with a short label or eyebrow and then a concise value or explanation.
+Cards sit on white (`#FFFFFF`) against the limestone background (`#F7F5F2`). The contrast is subtle but sufficient — the card "lifts" without needing heavy shadows.
 
-### Status chips
+Cards use `1px solid #E5E2DC` borders by default. On hover, the border transitions to `#D1CEC8` for a subtle acknowledgment.
 
-- Use muted chips for informational labels.
-- Use green, amber, or red only when they encode risk or alert state.
+### Badges
 
-### Data panels
-
-- Charts and tables should sit inside clear surfaces with consistent padding.
-- Titles, axis labels, and helper text should all use the same muted foreground tone.
+Compact, utilitarian chips for metadata and status. Use Space Grotesk uppercase for text. Variants map to alert colors:
+- `destructive` → danger red background alpha
+- `warning` → warning amber background alpha
+- `success` → success green background alpha
+- `outline` → transparent with strong border
 
 ## Do's and Don'ts
 
-- Do use warm neutrals, deep ink, and restrained accents.
-- Do keep the UI editorial and operational rather than flashy.
-- Do make alert language explicit and easy to scan.
-- Do use consistent card spacing and clear content hierarchy.
-- Don't use purple-heavy defaults, neon gradients, or glassmorphism.
-- Don't mix too many accent colors on the same screen.
-- Don't decorate charts with effects that reduce readability.
-- Don't let the frontend drift back into a generic starter template.
+### Do
+
+- Use the limestone background (`#F7F5F2`) as the primary canvas — it's warmer than white and instantly premium
+- Reserve Boston Clay (`#B8422E`) for interactive elements only — buttons, links, focus rings
+- Use Space Grotesk UPPERCASE labels for system-level metadata ("FUENTE: SIVIGILA", "SEMANA 18")
+- Create depth through border differences and subtle shadow, never through color
+- Let data breathe — generous spacing between sections, tight spacing within cards
+- Use serif hints through letter-spacing and weight, not serif fonts
+
+### Don't
+
+- Don't use gradients, glows, or neon accents — this is a government surveillance tool, not a SaaS product
+- Don't use dark backgrounds for primary surfaces — Heritage is light-mode native
+- Don't apply Boston Clay to backgrounds or large surfaces — it's for borders, links, and small accents
+- Don't use more than 2 font weights (400, 700) in any component
+- Don't add decorative elements that don't serve the data
+- Don't use generic blue/green/purple — the palette is deliberately restrained

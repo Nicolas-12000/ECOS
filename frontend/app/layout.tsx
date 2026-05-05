@@ -1,20 +1,43 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Public_Sans, Space_Grotesk } from "next/font/google";
 import "./globals.css";
+import { Navbar } from "@/components/layout/Navbar";
+import { Footer } from "@/components/layout/Footer";
+import { GlobalChatBubble } from "@/components/chat/GlobalChatBubble";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const publicSans = Public_Sans({
+  variable: "--font-public-sans",
   subsets: ["latin"],
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-space-grotesk",
   subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "ECOS | Alerta Temprana Epidemiológica",
-  description: "Plataforma nacional de observación y control de riesgo biológico en Colombia.",
+  title: "ECOS — Observatorio de Riesgo Epidemiológico | Colombia",
+  description:
+    "Plataforma nacional de alerta temprana para dengue, malaria, zika y chikungunya en Colombia. IA predictiva + datos abiertos + NLP para anticipar brotes 2–4 semanas antes del reporte oficial.",
+  keywords: [
+    "epidemiología",
+    "dengue",
+    "malaria",
+    "Colombia",
+    "alerta temprana",
+    "vigilancia epidemiológica",
+    "SIVIGILA",
+    "datos abiertos",
+  ],
+  authors: [{ name: "Equipo ECOS" }],
+  openGraph: {
+    title: "ECOS — Observatorio de Riesgo Epidemiológico",
+    description: "IA predictiva para anticipar brotes epidemiológicos en Colombia.",
+    type: "website",
+    locale: "es_CO",
+  },
 };
 
 export default function RootLayout({
@@ -25,9 +48,16 @@ export default function RootLayout({
   return (
     <html
       lang="es"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${publicSans.variable} ${spaceGrotesk.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-background text-foreground">{children}</body>
+      <body className="min-h-full flex flex-col font-sans bg-(--color-background) text-(--color-primary)">
+        <Navbar />
+        <main className="flex-1 flex flex-col">
+          {children}
+        </main>
+        <Footer />
+        <GlobalChatBubble />
+      </body>
     </html>
   );
 }

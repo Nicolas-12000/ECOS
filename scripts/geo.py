@@ -47,11 +47,29 @@ DEPT_CODE_TO_LATLON = {item["code"]: (item["lat"], item["lon"]) for item in DEPA
 REGION_MAP = {item["name"]: item["region"] for item in DEPARTMENTS if item.get("region")}
 
 
-def normalize_text(value: str) -> str:
+def normalize_text(value: str | None) -> str:
+    """Normalize text by removing accents, special chars and converting to uppercase."""
     if not value:
         return ""
     value = unicodedata.normalize("NFKD", str(value))
     value = "".join(ch for ch in value if not unicodedata.combining(ch))
-    value = value.replace(".", " ")
+    
+    # Basic cleanup similar to Spark version but for Python strings
+    import re
+    value = re.sub(r"\.", " ", value)
+    value = re.sub(r"[^a-zA-Z0-9\s]", "", value)
     value = " ".join(value.upper().split())
+    
+    # Department name variations
+    if "VALLE" in value:
+        return "VALLE DEL CAUCA"
+    if value in ["BOGOTA DC", "BOGOTA D C", "SANTAFE DE BOGOTA"]:
+        return "BOGOTA"
+    if "SAN ANDRES" in value:
+        return "ARCHIPIELAGO DE SAN ANDRES PROVIDENCIA Y SANTA CATALINA"
+    if value == "NORTE SANTANDER":
+        return "NORTE DE SANTANDER"
+    if value == "GUAJIRA":
+        return "LA GUAJIRA"
+        
     return value

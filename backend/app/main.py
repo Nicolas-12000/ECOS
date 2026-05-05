@@ -10,7 +10,7 @@ setup_logging(settings.debug)
 app = FastAPI(
     title="ECOS API",
     description="Early Control and Observation System — API de alerta temprana epidemiológica",
-    version="0.2.0",
+    version="0.3.0",
     debug=settings.debug,
 )
 
@@ -30,16 +30,16 @@ app.include_router(api_router)
 def root():
     return {
         "name": "ECOS API",
-        "version": "0.2.0",
+        "version": "0.3.0",
         "status": "ok",
         "docs": "/docs",
         "endpoints": [
             "/health",
-            "/api/predict",
-            "/api/history",
-            "/api/signals",
-            "/api/chat",
-            "/api/alerts",
-            "/api/scraping/rss",
+            "/api/v3/predict",
+            "/api/v3/history",
+            "/api/v3/signals",
+            "/api/v3/chat",
+            "/api/v3/alerts",
+            "/api/v3/endemic",
         ],
     }

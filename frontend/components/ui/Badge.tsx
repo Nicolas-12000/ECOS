@@ -1,30 +1,38 @@
 import * as React from "react"
+import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
-export interface BadgeProps extends React.HTMLAttributes<HTMLDivElement> {
-  variant?: 'default' | 'signal' | 'warning' | 'danger' | 'accent' | 'outline'
-}
-
-function Badge({ className, variant = 'default', ...props }: BadgeProps) {
-  const variants = {
-    default: "bg-surface text-foreground border border-border",
-    signal: "bg-signal text-primary-contrast border-none",
-    warning: "bg-warning text-primary-contrast border-none",
-    danger: "bg-danger text-primary-contrast border-none",
-    accent: "bg-accent-soft text-primary border-none",
-    outline: "bg-transparent border border-border text-foreground",
+const badgeVariants = cva(
+  "inline-flex items-center rounded-sm border px-2 py-0.5 font-display text-[0.75rem] uppercase tracking-wide transition-colors focus:outline-none focus:ring-2 focus:ring-(--color-tertiary) focus:ring-offset-2",
+  {
+    variants: {
+      variant: {
+        default:
+          "border-transparent bg-(--color-primary) text-white",
+        secondary:
+          "border-(--color-border) bg-transparent text-(--color-secondary)",
+        destructive:
+          "border-transparent bg-(--color-danger-alpha) text-(--color-danger)",
+        outline: "text-(--color-secondary) border-(--color-border-strong)",
+        success: "border-transparent bg-(--color-success-alpha) text-(--color-success)",
+        warning: "border-transparent bg-(--color-warning-alpha) text-(--color-warning)",
+        tertiary: "border-transparent bg-(--color-tertiary-alpha) text-(--color-tertiary)",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
   }
+)
 
+export interface BadgeProps
+  extends React.HTMLAttributes<HTMLDivElement>,
+    VariantProps<typeof badgeVariants> {}
+
+function Badge({ className, variant, ...props }: BadgeProps) {
   return (
-    <div
-      className={cn(
-        "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wider transition-colors",
-        variants[variant],
-        className
-      )}
-      {...props}
-    />
+    <div className={cn(badgeVariants({ variant }), className)} {...props} />
   )
 }
 
-export { Badge }
+export { Badge, badgeVariants }

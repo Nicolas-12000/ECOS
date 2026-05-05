@@ -14,10 +14,23 @@ if str(MODELS_ROOT) not in sys.path:
 from utils import add_lags, evaluate_metrics
 
 
-CLIMATE_COLS = ["temp_avg_c", "temp_min_c", "temp_max_c", "humidity_avg_pct", "precipitation_mm"]
+CLIMATE_COLS = [
+    "temp_avg_c",
+    "temp_min_c",
+    "temp_max_c",
+    "humidity_avg_pct",
+    "precipitation_mm",
+    "temp_avg_c_actual",
+    "temp_min_c_actual",
+    "temp_max_c_actual",
+    "humidity_avg_pct_actual",
+    "precipitation_mm_actual",
+]
 EXOG_COLS = [
     "vaccination_coverage_pct",
     "rips_visits_total",
+    "mobility_in",
+    "mobility_out",
     "mobility_index",
     "trends_score",
     "rss_mentions",
@@ -26,10 +39,15 @@ EXOG_COLS = [
 
 
 def build_features(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series]:
-    """Builds X and y for a single split."""
+    """Builds X and y for a single split using cases_total as target."""
+    return build_features_with_target(df, target_col="cases_total")
+
+
+def build_features_with_target(df: pd.DataFrame, target_col: str) -> tuple[pd.DataFrame, pd.Series]:
+    """Builds X and y for a single split using a custom target column."""
     df = df.copy()
     df["week_start_date"] = pd.to_datetime(df["week_start_date"], errors="coerce")
-    df = df.dropna(subset=["week_start_date", "epi_year", "epi_week", "cases_total"])
+    df = df.dropna(subset=["week_start_date", "epi_year", "epi_week", target_col])
 
     for col in CLIMATE_COLS + EXOG_COLS:
         if col not in df.columns:
@@ -54,7 +72,7 @@ def build_features(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series]:
     )
 
     X = pd.concat([X_num, X_dummies], axis=1)
-    y = df["cases_total"].astype(float)
+    y = df[target_col].astype(float)
     return X, y
 
 

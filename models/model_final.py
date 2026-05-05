@@ -19,6 +19,7 @@ if str(MODELS_ROOT) not in sys.path:
 from model_pipeline import (
     align_columns,
     build_features,
+    build_features_with_target,
     build_splits,
     compute_shap_importance,
     train_model,
@@ -36,6 +37,69 @@ DEFAULT_BASELINE_METRICS = REPO_ROOT / "models/baseline_v0_metrics.json"
 DEFAULT_REPORT = REPO_ROOT / "docs/metrics-final.md"
 DEFAULT_METRICS = REPO_ROOT / "models/final_model_metrics.json"
 DEFAULT_MODEL = REPO_ROOT / "models/final_model.joblib"
+
+
+def _fit_prophet_series(df_series: pd.DataFrame):
+    from prophet import Prophet
+
+    model = Prophet(
+        yearly_seasonality=True,
+        weekly_seasonality=True,
+        daily_seasonality=False,
+        interval_width=0.9,
+    )
+    model.fit(df_series)
+    return model
+
+
+def _build_prophet_models(df: pd.DataFrame, min_weeks: int, max_series: int) -> dict:
+    prophet_models: dict[str, object] = {}
+    groups = (
+        df.groupby(["municipio_code", "disease"], dropna=True)
+        .size()
+        .sort_values(ascending=False)
+    )
+
+    for (municipio_code, disease), count in groups.items():
+        if count < min_weeks:
+            continue
+        key = f"{municipio_code}:{disease}"
+        if len(prophet_models) >= max_series:
+            break
+
+        subset = df[(df["municipio_code"] == municipio_code) & (df["disease"] == disease)].copy()
+        subset = subset.sort_values("week_start_date")
+        series = subset[["week_start_date", "cases_total"]].rename(
+            columns={"week_start_date": "ds", "cases_total": "y"}
+        )
+        try:
+            prophet_models[key] = _fit_prophet_series(series)
+        except Exception:
+            continue
+
+    return prophet_models
+
+
+def _apply_prophet_residuals(df: pd.DataFrame, prophet_models: dict) -> pd.DataFrame:
+    df = df.copy()
+    df["prophet_yhat"] = pd.NA
+
+    for key, model in prophet_models.items():
+        municipio_code, disease = key.split(":", 1)
+        subset_idx = df.index[(df["municipio_code"] == municipio_code) & (df["disease"] == disease)]
+        if subset_idx.empty:
+            continue
+        subset = df.loc[subset_idx].sort_values("week_start_date")
+        frame = subset[["week_start_date"]].rename(columns={"week_start_date": "ds"})
+        try:
+            forecast = model.predict(frame)
+        except Exception:
+            continue
+        df.loc[subset_idx, "prophet_yhat"] = forecast["yhat"].to_numpy()
+
+    df["prophet_yhat"] = pd.to_numeric(df["prophet_yhat"], errors="coerce")
+    df["residual"] = df["cases_total"] - df["prophet_yhat"].fillna(0)
+    return df
 
 
 def _load_signals() -> pd.DataFrame:
@@ -116,6 +180,10 @@ def main() -> int:
     parser.add_argument("--model", default=str(DEFAULT_MODEL))
     parser.add_argument("--folds", type=int, default=3)
     parser.add_argument("--outbreak-threshold", type=float, default=5.0)
+    parser.add_argument("--prophet-min-weeks", type=int, default=104)
+    parser.add_argument("--prophet-max-series", type=int, default=2000)
+    parser.add_argument("--use-prophet", action="store_true", default=True)
+    parser.add_argument("--no-prophet", action="store_true", default=False)
     args = parser.parse_args()
 
     df_base = load_dataset(Path(args.input_parquet), Path(args.input_csv))
@@ -137,6 +205,16 @@ def main() -> int:
 
     df = df.sort_values("week_start_date").reset_index(drop=True)
 
+    use_prophet = args.use_prophet and not args.no_prophet
+    prophet_models: dict[str, object] = {}
+    if use_prophet:
+        try:
+            prophet_models = _build_prophet_models(df, args.prophet_min_weeks, args.prophet_max_series)
+            if prophet_models:
+                df = _apply_prophet_residuals(df, prophet_models)
+        except Exception:
+            prophet_models = {}
+
     print(f"[info] Dataset final: {len(df)} filas | {df['week_start_date'].min()} – {df['week_start_date'].max()}")
 
     splits = build_splits(df, n_folds=args.folds)
@@ -146,8 +224,12 @@ def main() -> int:
     train_df = df[df["week_start_date"] <= cutoff].copy()
     test_df = df[df["week_start_date"] > cutoff].copy()
 
-    X_train, y_train = build_features(train_df)
-    X_test, y_test = build_features(test_df)
+    if "residual" in df.columns:
+        X_train, y_train = build_features_with_target(train_df, target_col="residual")
+        X_test, y_test = build_features_with_target(test_df, target_col="residual")
+    else:
+        X_train, y_train = build_features(train_df)
+        X_test, y_test = build_features(test_df)
     X_train, X_test = align_columns(X_train, X_test)
 
     print(f"[info] Entrenando modelo final ({len(train_df)} train, {len(test_df)} test, {X_train.shape[1]} features)...")
@@ -176,7 +258,14 @@ def main() -> int:
     Path(args.metrics).parent.mkdir(parents=True, exist_ok=True)
     Path(args.metrics).write_text(json.dumps(final_metrics, indent=2), encoding="utf-8")
     Path(args.model).parent.mkdir(parents=True, exist_ok=True)
-    joblib.dump(model, Path(args.model))
+    artifact = {
+        "xgb_model": model,
+        "prophet_models": prophet_models,
+        "feature_columns": list(X_train.columns),
+        "uses_prophet": bool(prophet_models),
+        "trained_on_residuals": "residual" in df.columns,
+    }
+    joblib.dump(artifact, Path(args.model))
 
     print(f"[ok] Final — MAE={final_metrics['mae']:.2f} Recall={final_metrics['recall']:.3f} F1={final_metrics['f1']:.3f}")
     print(f"[ok] Reporte: {args.report}")
