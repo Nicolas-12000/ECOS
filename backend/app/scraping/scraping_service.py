@@ -18,19 +18,48 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-RSS_FEEDS = [
-    ("El Tiempo", "https://www.eltiempo.com/rss/colombia.xml"),
-    ("El Tiempo Salud", "https://www.eltiempo.com/rss/salud.xml"),
-    ("El Colombiano", "https://www.elcolombiano.com/rss/salud.xml"),
-    ("El Heraldo", "https://www.elheraldo.co/rss.xml"),
-    ("Noticias RCN", "https://www.noticiasrcn.com/rss"),
-]
+def _load_rss_feeds() -> list[tuple[str, str]]:
+    from pathlib import Path
+    import json
+    repo_root = Path(__file__).resolve().parents[3]
+    feeds_path = repo_root / "data" / "rss_feeds.json"
+    if not feeds_path.exists():
+        return [
+            ("El Tiempo", "https://www.eltiempo.com/rss/colombia.xml"),
+            ("El Tiempo Salud", "https://www.eltiempo.com/rss/salud.xml"),
+            ("La Opinion", "https://www.laopinion.co/rss.xml"),
+        ]
+    try:
+        data = json.loads(feeds_path.read_text(encoding="utf-8"))
+        return [(item.get("name", "RSS"), item.get("url", "")) for item in data if item.get("url")]
+    except Exception:
+        return [
+            ("El Tiempo", "https://www.eltiempo.com/rss/colombia.xml"),
+            ("El Tiempo Salud", "https://www.eltiempo.com/rss/salud.xml"),
+            ("La Opinion", "https://www.laopinion.co/rss.xml"),
+        ]
+
+RSS_FEEDS = _load_rss_feeds()
+
+REQUEST_HEADERS = {
+    "User-Agent": "ECOS/1.0 (+https://ecos.local)",
+    "Accept": "application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
+}
 
 DISEASE_TERMS = {
-    "dengue": ["dengue", "fiebre dengue", "aedes aegypti"],
-    "chikungunya": ["chikungunya", "chikunguña"],
-    "zika": ["zika"],
-    "malaria": ["malaria", "paludismo", "anopheles"],
+    "dengue": [
+        "dengue", "fiebre dengue", "dengue grave", "dengue hemorr", "dengue hemorrag",
+        "aedes aegypti", "aedes", "arbovirosis",
+    ],
+    "chikungunya": [
+        "chikungunya", "chikunguña", "fiebre chikungunya", "dolor articular",
+    ],
+    "zika": [
+        "zika", "virus del zika", "microcefalia",
+    ],
+    "malaria": [
+        "malaria", "paludismo", "plasmodium", "anopheles",
+    ],
 }
 
 ALERT_TERMS = [
@@ -113,21 +142,30 @@ def _parse_rss_xml(xml_text: str) -> list[dict]:
     return items
 
 
-def fetch_rss_articles(lookback_days: int = 30) -> list[dict]:
+def fetch_rss_articles(
+    lookback_days: int = 30,
+    force_refresh: bool = False,
+    debug: bool = False,
+) -> list[dict]:
     """Fetch and filter epidemiological articles from RSS feeds."""
     now = time.time()
-    if _cache["data"] is not None and (now - _cache["timestamp"]) < CACHE_TTL:
+    if not force_refresh and _cache["data"] is not None and (now - _cache["timestamp"]) < CACHE_TTL:
         return _cache["data"]
 
     cutoff = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=lookback_days)
     articles = []
+    total_items = 0
+    total_matched = 0
 
     for source_name, feed_url in RSS_FEEDS:
         try:
-            resp = httpx.get(feed_url, timeout=15.0, follow_redirects=True)
+            resp = httpx.get(feed_url, timeout=15.0, follow_redirects=True, headers=REQUEST_HEADERS)
             resp.raise_for_status()
             items = _parse_rss_xml(resp.text)
 
+            total_items += len(items)
+            matched_feed = 0
+            sample_titles = [it.get("title", "").strip() for it in items[:5]]
             for item in items:
                 published = _parse_date(item.get("pubDate"))
                 if published is None:
@@ -155,8 +193,21 @@ def fetch_rss_articles(lookback_days: int = 30) -> list[dict]:
                     "diseases": diseases,
                     "relevance_score": round(score, 2),
                 })
+                matched_feed += 1
+                total_matched += 1
         except Exception as exc:
             logger.warning("Failed to fetch RSS from %s: %s", source_name, exc)
+
+        if debug:
+            print(f"[rss] {source_name}: items={len(items)} matched={matched_feed}")
+            if matched_feed == 0 and sample_titles:
+                print("[rss] sample titles:")
+                for t in sample_titles:
+                    if t:
+                        print(f"  - {t}")
+
+    if debug:
+        print(f"[rss] total items={total_items} matched={total_matched}")
 
     articles.sort(key=lambda a: a["relevance_score"], reverse=True)
     _cache["data"] = articles

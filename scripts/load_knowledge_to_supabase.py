@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """Load markdown documents into Supabase knowledge_base table for RAG."""
 
+import argparse
+import json
 import os
 import re
-import json
 from pathlib import Path
+
 from dotenv import load_dotenv
 import psycopg
-from psycopg.rows import dict_row
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(REPO_ROOT / ".env")
@@ -37,19 +38,27 @@ def chunk_text(text: str, chunk_size: int = 1000) -> list[str]:
         chunks.append(current_chunk.strip())
     return chunks
 
-def main():
-    db_url = os.getenv("SUPABASE_DB_URL")
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Load docs into knowledge_base")
+    parser.add_argument("--truncate", action="store_true", help="Truncate knowledge_base before loading")
+    args, unknown = parser.parse_known_args()
+
+    if unknown:
+        print(f"[warn] ignoring unknown arguments: {' '.join(unknown)}")
+
+    db_url = os.getenv("SUPABASE_DB_URL") or os.getenv("DATABASE_URL")
     if not db_url:
         print("[error] SUPABASE_DB_URL not found in .env")
-        return
+        return 1
 
     print(f"[info] connecting to database...")
     
     try:
         with psycopg.connect(db_url) as conn:
             with conn.cursor() as cur:
-                print("[info] clearing knowledge_base table...")
-                cur.execute("TRUNCATE TABLE public.knowledge_base")
+                if args.truncate:
+                    print("[info] clearing knowledge_base table...")
+                    cur.execute("TRUNCATE TABLE public.knowledge_base")
                 
                 for path in DOC_PATHS:
                     if not path.exists():
@@ -61,23 +70,27 @@ def main():
                     chunks = chunk_text(text)
                     
                     for i, chunk in enumerate(chunks):
+                        metadata = {
+                            "title": f"{path.name} - Part {i+1}",
+                            "source_path": str(path.relative_to(REPO_ROOT)),
+                            "chunk_index": i,
+                            "total_chunks": len(chunks),
+                        }
                         cur.execute(
                             """
-                            INSERT INTO public.knowledge_base (title, content, source_path, metadata)
-                            VALUES (%s, %s, %s, %s)
+                            INSERT INTO public.knowledge_base (content, metadata)
+                            VALUES (%s, %s)
                             """,
-                            (
-                                f"{path.name} - Part {i+1}",
-                                chunk,
-                                str(path.relative_to(REPO_ROOT)),
-                                json.dumps({"chunk_index": i, "total_chunks": len(chunks)})
-                            )
+                            (chunk, json.dumps(metadata)),
                         )
                 
             conn.commit()
             print("[ok] knowledge_base populated successfully")
     except Exception as e:
         print(f"[error] {e}")
+        return 1
+
+    return 0
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

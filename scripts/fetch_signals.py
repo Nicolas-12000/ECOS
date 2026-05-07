@@ -2,8 +2,8 @@
 """Fetch weekly early signals from Google Trends and RSS feeds.
 
 Outputs:
-- data/raw/signals_trends.csv
-- data/raw/signals_rss.csv
+- data/processed/signals_trends.csv
+- data/processed/signals_rss.csv
 
 Includes Z-score logic and high-volume department filtering per Ecos.md.
 """
@@ -24,8 +24,8 @@ from pytrends.request import TrendReq
 from geo import DEPT_CODE_TO_ISO, DEPT_NAME_TO_CODE, normalize_text
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_TRENDS_OUT = REPO_ROOT / "data/raw/signals_trends.csv"
-DEFAULT_RSS_OUT = REPO_ROOT / "data/raw/signals_rss.csv"
+DEFAULT_TRENDS_OUT = REPO_ROOT / "data/processed/signals_trends.csv"
+DEFAULT_RSS_OUT = REPO_ROOT / "data/processed/signals_rss.csv"
 
 TREND_KEYWORDS = {
     "dengue": ["dengue sintomas", "fiebre dengue", "mosquito dengue"],
@@ -35,22 +35,37 @@ TREND_KEYWORDS = {
 }
 
 DISEASE_TERMS = {
-    "dengue": ["dengue"],
-    "chikungunya": ["chikungunya"],
-    "zika": ["zika"],
-    "malaria": ["malaria", "paludismo"],
+    "dengue": ["dengue", "fiebre dengue", "dengue grave", "dengue hemorr", "dengue hemorrag", "aedes", "arbovirosis"],
+    "chikungunya": ["chikungunya", "chikunguña", "fiebre chikungunya", "dolor articular"],
+    "zika": ["zika", "virus del zika", "microcefalia"],
+    "malaria": ["malaria", "paludismo", "plasmodium", "anopheles"],
 }
 
-RSS_FEEDS = [
-    "https://www.eltiempo.com/rss/colombia.xml",
-    "https://www.eltiempo.com/rss/salud.xml",
-    "https://www.elcolombiano.com/rss/salud.xml",
-    "https://www.elheraldo.co/rss.xml",
-    "https://www.laopinion.com.co/rss.xml",
-    "https://www.diariodelhuila.com/rss.xml",
-    "https://www.noticiasrcn.com/rss",
-    "https://www.caracol.com.co/rss/",
-]
+REQUEST_HEADERS = {
+    "User-Agent": "ECOS/1.0 (+https://ecos.local)",
+    "Accept": "application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
+}
+
+def load_rss_feeds() -> list[str]:
+    feeds_path = REPO_ROOT / "data" / "rss_feeds.json"
+    if not feeds_path.exists():
+        return [
+            "https://www.eltiempo.com/rss/colombia.xml",
+            "https://www.eltiempo.com/rss/salud.xml",
+            "https://www.laopinion.co/rss.xml",
+        ]
+    try:
+        import json
+        data = json.loads(feeds_path.read_text(encoding="utf-8"))
+        return [item.get("url", "") for item in data if item.get("url")]
+    except Exception:
+        return [
+            "https://www.eltiempo.com/rss/colombia.xml",
+            "https://www.eltiempo.com/rss/salud.xml",
+            "https://www.laopinion.co/rss.xml",
+        ]
+
+RSS_FEEDS = load_rss_feeds()
 
 # Departamentos con volumen suficiente de búsqueda según Ecos.md
 DPTOS_ALTO_VOLUMEN = {"05", "76", "08", "25", "68", "13", "52", "41", "73"}
@@ -147,7 +162,7 @@ def fetch_rss(lookback_days: int) -> pd.DataFrame:
     rows = []
 
     for feed_url in RSS_FEEDS:
-        feed = feedparser.parse(feed_url)
+        feed = feedparser.parse(feed_url, request_headers=REQUEST_HEADERS)
         for entry in getattr(feed, "entries", []):
             published = parse_date(entry.get("published") or entry.get("updated"))
             if published is None: continue
@@ -204,6 +219,7 @@ def main() -> int:
     parser.add_argument("--rss-output", default=str(DEFAULT_RSS_OUT))
     parser.add_argument("--append", action="store_true")
     parser.add_argument("--retain-weeks", type=int, default=4, help="Keep only the most recent N weeks in CSV")
+    # No DB sync here; this script only writes CSVs to data/processed
     args = parser.parse_args()
 
     trends_df = fetch_trends(args.timeframe, args.by_dept, args.sleep)
@@ -212,9 +228,8 @@ def main() -> int:
         print(f"[ok] trends -> {args.trends_output} ({len(trends_df)} rows)")
     
     rss_df = fetch_rss(args.rss_lookback_days)
-    if not rss_df.empty:
-        write_csv(rss_df, Path(args.rss_output), args.append, args.retain_weeks)
-        print(f"[ok] rss -> {args.rss_output} ({len(rss_df)} rows)")
+    write_csv(rss_df, Path(args.rss_output), args.append, args.retain_weeks)
+    print(f"[ok] rss -> {args.rss_output} ({len(rss_df)} rows)")
 
     return 0
 

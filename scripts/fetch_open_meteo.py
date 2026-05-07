@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Fetch weekly aggregated Open‑Meteo data for departments and write CSV.
 
-Produces `data/raw/open_meteo_weekly.csv` with columns:
- - departamento_code, week_start_date, temp_max_c, temp_min_c, temp_avg_c, precipitation_mm
+Produces `data/processed/open_meteo_weekly.csv` with columns:
+ - departamento_code, week_start_date, temp_max_c, temp_min_c, temp_avg_c, precipitation_mm, humidity_avg_pct
 
 Behaviour:
  - By default fetches the last `--weeks` weeks of daily data and aggregates to week.
@@ -24,7 +24,7 @@ import pandas as pd
 from geo import DEPT_CODE_TO_LATLON
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_OUT = REPO_ROOT / "data/raw/open_meteo_weekly.csv"
+DEFAULT_OUT = REPO_ROOT / "data/processed/open_meteo_weekly.csv"
 
 OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
 
@@ -43,6 +43,7 @@ def fetch_daily_for_coord(lat: float, lon: float, start_date: str, end_date: str
             "temperature_2m_min",
             "temperature_2m_mean",
             "precipitation_sum",
+            "relative_humidity_2m_mean",
         ]),
         "timezone": "UTC",
         "start_date": start_date,
@@ -64,6 +65,7 @@ def aggregate_weekly(daily: dict) -> list[dict]:
     tmp_min = daily.get("daily", {}).get("temperature_2m_min", [])
     tmp_mean = daily.get("daily", {}).get("temperature_2m_mean", [])
     precip = daily.get("daily", {}).get("precipitation_sum", [])
+    humidity = daily.get("daily", {}).get("relative_humidity_2m_mean", [])
 
     rows_by_week: dict[dt.date, list[dict]] = {}
     for i, t in enumerate(times):
@@ -75,6 +77,7 @@ def aggregate_weekly(daily: dict) -> list[dict]:
             "temp_min": tmp_min[i] if i < len(tmp_min) else None,
             "temp_mean": tmp_mean[i] if i < len(tmp_mean) else None,
             "precip": precip[i] if i < len(precip) else None,
+            "humidity": humidity[i] if i < len(humidity) else None,
         })
 
     out = []
@@ -83,6 +86,7 @@ def aggregate_weekly(daily: dict) -> list[dict]:
         min_vals = [it["temp_min"] for it in items if it["temp_min"] is not None]
         mean_vals = [it["temp_mean"] for it in items if it["temp_mean"] is not None]
         precip_vals = [it["precip"] for it in items if it["precip"] is not None]
+        humidity_vals = [it["humidity"] for it in items if it["humidity"] is not None]
 
         out.append({
             "week_start_date": wk.isoformat(),
@@ -90,6 +94,7 @@ def aggregate_weekly(daily: dict) -> list[dict]:
             "temp_min_c": float(min(min_vals)) if min_vals else None,
             "temp_avg_c": float(statistics.mean(mean_vals)) if mean_vals else None,
             "precipitation_mm": float(sum(precip_vals)) if precip_vals else 0.0,
+            "humidity_avg_pct": float(statistics.mean(humidity_vals)) if humidity_vals else None,
         })
 
     return out
@@ -102,6 +107,13 @@ def write_csv(df: pd.DataFrame, path: Path, append: bool, retain_weeks: int) -> 
         df_existing = existing.copy()
         df = pd.concat([df_existing, df], ignore_index=True)
 
+    # Normalize departamento_code to 2-digit strings (e.g., 5 -> 05)
+    codes = df.get("departamento_code", pd.Series(dtype=str)).astype(str)
+    codes = codes.str.replace(r"\.0$", "", regex=True)
+    codes = codes.where(~codes.isin(["nan", "None", ""]), "")
+    codes = codes.where(codes == "", codes.str.zfill(2))
+    df["departamento_code"] = codes
+
     # Normalize types and dedupe
     df["week_start_date"] = pd.to_datetime(df["week_start_date"]).dt.date
     df = df.drop_duplicates(subset=["departamento_code", "week_start_date"], keep="last")
@@ -113,7 +125,15 @@ def write_csv(df: pd.DataFrame, path: Path, append: bool, retain_weeks: int) -> 
         df = df[df["week_start_date"] >= cutoff]
 
     # Ensure canonical ordering
-    cols = ["departamento_code", "week_start_date", "temp_max_c", "temp_min_c", "temp_avg_c", "precipitation_mm"]
+    cols = [
+        "departamento_code",
+        "week_start_date",
+        "temp_max_c",
+        "temp_min_c",
+        "temp_avg_c",
+        "precipitation_mm",
+        "humidity_avg_pct",
+    ]
     df = df.loc[:, [c for c in cols if c in df.columns]]
     # Write with ISO date strings
     df["week_start_date"] = df["week_start_date"].apply(lambda d: d.isoformat() if not pd.isna(d) else "")
@@ -127,6 +147,7 @@ def main() -> int:
     parser.add_argument("--append", action="store_true", help="Append to existing CSV instead of overwriting")
     parser.add_argument("--retain-weeks", type=int, default=4, help="Keep only this many recent weeks in CSV (default 4)")
     parser.add_argument("--sleep", type=float, default=0.5, help="Seconds to sleep between API calls")
+    # No DB sync here; this script only writes CSVs to data/processed
     args = parser.parse_args()
 
     end_date = dt.date.today()
@@ -153,6 +174,7 @@ def main() -> int:
     out_path = Path(args.out)
     write_csv(df, out_path, append=args.append, retain_weeks=args.retain_weeks)
     print(f"[ok] open-meteo weekly written to {out_path} ({len(df)} rows fetched)")
+
     return 0
 
 

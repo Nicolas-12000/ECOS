@@ -1,6 +1,7 @@
 import logging
 from pathlib import Path
 from functools import lru_cache
+import sys
 
 import joblib
 import pandas as pd
@@ -13,11 +14,14 @@ from app.services.epidemiology import (
     calculate_endemic_channel,
     classify_endemic_risk,
 )
+REPO_ROOT = Path(__file__).resolve().parents[3]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
 from models.hybrid_model import EcosHybridModel
 
 logger = logging.getLogger(__name__)
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
 MODEL_PATH_FINAL = REPO_ROOT / "models/final_model.joblib"
 
 CLIMATE_COLS = [

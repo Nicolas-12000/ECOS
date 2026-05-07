@@ -1,0 +1,14 @@
+[
+  {
+    "name": "El Tiempo",
+    "url": "https://www.eltiempo.com/rss/colombia.xml"
+  },
+  {
+    "name": "El Tiempo Salud",
+    "url": "https://www.eltiempo.com/rss/salud.xml"
+  },
+  {
+    "name": "La Opinion",
+    "url": "https://www.laopinion.co/rss.xml"
+  }
+]

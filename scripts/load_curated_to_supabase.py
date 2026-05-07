@@ -21,24 +21,31 @@ PROCESSED_DIR = REPO_ROOT / "data/processed"
 
 # Define tables in dependency order for safe loading (Dimensions first, then Facts)
 TABLES = [
-    ("dim_departamentos", "curated_weekly_csv_dim_departamentos"),
-    ("dim_municipios", "curated_weekly_csv_dim_municipios"),
-    ("fact_avg_cases_annual", "curated_weekly_csv_fact_avg_cases_annual"),
-    ("fact_climate_monthly", "curated_weekly_csv_fact_climate_monthly"),
-    ("fact_vaccination_annual", "curated_weekly_csv_fact_vaccination_annual"),
-    ("fact_core_weekly", "curated_weekly_csv_fact_core_weekly"),
+    ("dim_departamentos", PROCESSED_DIR / "curated_weekly_csv_dim_departamentos"),
+    ("dim_municipios", PROCESSED_DIR / "curated_weekly_csv_dim_municipios"),
+    ("fact_avg_cases_annual", PROCESSED_DIR / "curated_weekly_csv_fact_avg_cases_annual"),
+    ("fact_climate_monthly", PROCESSED_DIR / "curated_weekly_csv_fact_climate_monthly"),
+    ("fact_vaccination_annual", PROCESSED_DIR / "curated_weekly_csv_fact_vaccination_annual"),
+    ("fact_core_weekly", PROCESSED_DIR / "curated_weekly_csv_fact_core_weekly"),
+    ("raw_signals_trends", PROCESSED_DIR / "signals_trends.csv"),
+    ("raw_signals_rss", PROCESSED_DIR / "signals_rss.csv"),
+    ("raw_open_meteo_weekly", PROCESSED_DIR / "open_meteo_weekly.csv"),
+    ("raw_rss_articles", PROCESSED_DIR / "signals_rss_articles.csv"),
 ]
 
-def resolve_csv_file(directory: Path) -> Path:
-    files = sorted(directory.glob("part-*.csv"))
+def resolve_csv_file(path_or_dir: Path) -> Path:
+    if path_or_dir.is_file():
+        return path_or_dir
+    files = sorted(path_or_dir.glob("part-*.csv"))
     if not files:
-        raise FileNotFoundError(f"No part-*.csv found in {directory}")
+        raise FileNotFoundError(f"No part-*.csv found in {path_or_dir}")
     return files[0]
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Load Star Schema into Supabase")
     parser.add_argument("--database-url", default=os.getenv("SUPABASE_DB_URL", ""))
     parser.add_argument("--truncate", action="store_true", help="Truncate destination tables before loading")
+    parser.add_argument("--scraped-only", action="store_true", help="Load only scraped tables (raw_*)")
     args = parser.parse_args()
 
     if not args.database_url:
@@ -46,21 +53,24 @@ def main() -> int:
 
     with psycopg.connect(args.database_url) as conn:
         with conn.cursor() as cur:
+            tables_to_load = TABLES
+            if args.scraped_only:
+                tables_to_load = [t for t in TABLES if t[0].startswith("raw_")]
+
             if args.truncate:
                 print("[info] truncating tables...")
                 # Truncate all tables in one go with CASCADE to handle foreign keys
-                tables_str = ", ".join([f"public.{t}" for t, _ in TABLES])
+                tables_str = ", ".join([f"public.{t}" for t, _ in tables_to_load])
                 cur.execute(f"TRUNCATE TABLE {tables_str} CASCADE")
                 print(f"[ok] truncated: {tables_str}")
 
-            for table_name, folder_name in TABLES:
-                folder_path = PROCESSED_DIR / folder_name
-                if not folder_path.exists():
-                    print(f"[warn] skipping {table_name}: directory not found {folder_path}")
+            for table_name, path_or_dir in tables_to_load:
+                if not path_or_dir.exists():
+                    print(f"[warn] skipping {table_name}: path not found {path_or_dir}")
                     continue
                 
                 try:
-                    csv_file = resolve_csv_file(folder_path)
+                    csv_file = resolve_csv_file(path_or_dir)
                 except FileNotFoundError as e:
                     print(f"[warn] skipping {table_name}: {e}")
                     continue

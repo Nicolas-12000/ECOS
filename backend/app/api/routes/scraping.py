@@ -51,6 +51,8 @@ def trigger_scraping():
     python_exe = sys.executable
     signals_script = repo_root / "scripts" / "fetch_signals.py"
     meteo_script = repo_root / "scripts" / "fetch_open_meteo.py"
+    rss_articles_script = repo_root / "scripts" / "fetch_rss_articles.py"
+    load_curated = repo_root / "scripts" / "load_curated_to_supabase.py"
 
     # Cargar estado
     if status_file.exists():
@@ -91,6 +93,19 @@ def trigger_scraping():
             cwd=str(repo_root),
             start_new_session=True
         )
+        subprocess.Popen(
+            [python_exe, str(rss_articles_script), "--append", "--lookback-days", "30"],
+            cwd=str(repo_root),
+            start_new_session=True
+        )
+        # Load scraped tables immediately if DB is configured
+        db_url = os.getenv("SUPABASE_DB_URL") or os.getenv("DATABASE_URL")
+        if db_url:
+            subprocess.Popen(
+                [python_exe, str(load_curated), "--database-url", db_url, "--scraped-only"],
+                cwd=str(repo_root),
+                start_new_session=True
+            )
 
         return {
             "status": "started",

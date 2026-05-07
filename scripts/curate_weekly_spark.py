@@ -929,11 +929,25 @@ def enrich_and_write(
             ).filter(F.col("municipio_code").isNotNull())
             
             # Then join with core_df using codes
+            # Select climate columns with a climate_ prefix to avoid name collisions,
+            # then coalesce into canonical names on the core dataframe.
+            climate_select = [F.col("municipio_code"), F.col("month_num")]
+            for c in PARAM_MAP.values():
+                climate_select.append(F.col(c).alias(f"climate_{c}"))
+
             core_df = core_df.join(
-                climate_muni_with_codes.select("municipio_code", "month_num", *PARAM_MAP.values()),
+                climate_muni_with_codes.select(*climate_select),
                 on=["municipio_code", "month_num"],
                 how="left",
             )
+
+            # Coalesce climate values into canonical columns (prefer existing core_df values,
+            # otherwise use the climate_ prefixed values), then drop the climate_ columns.
+            for c in PARAM_MAP.values():
+                climate_col = f"climate_{c}"
+                if climate_col in core_df.columns:
+                    core_df = core_df.withColumn(c, F.coalesce(F.col(c), F.col(climate_col)))
+                    core_df = core_df.drop(climate_col)
     except Exception as e:
         print(f"[warn] climate: could not join climate_muni to core_df: {e}")
 
@@ -1026,9 +1040,23 @@ def enrich_and_write(
         )
     if open_meteo is not None:
         meteo = open_meteo
+
+        # Rename open-meteo climate columns to *_actual to avoid ambiguous column
+        # references after joins (we consider open-meteo values as 'actual' measurements).
+        for src_col, dst_col in (
+            ("temp_avg_c", "temp_avg_c_actual"),
+            ("temp_min_c", "temp_min_c_actual"),
+            ("temp_max_c", "temp_max_c_actual"),
+            ("precipitation_mm", "precipitation_mm_actual"),
+        ):
+            if src_col in meteo.columns and dst_col not in meteo.columns:
+                meteo = meteo.withColumnRenamed(src_col, dst_col)
+
         if "municipio_code" in meteo.columns:
             meteo = meteo.filter(F.length(F.col("municipio_code")) == 5)
-            meteo = meteo.drop("departamento_code")
+            # keep municipio_code and week_start_date for join; drop departamento_code if present
+            if "departamento_code" in meteo.columns:
+                meteo = meteo.drop("departamento_code")
             core_df = core_df.join(
                 meteo,
                 on=["municipio_code", "week_start_date"],
