@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Query, HTTPException
-from app.schemas.epidemiology import MobilityODResponse, MobilityODItem
-from app.services.epidemiology import get_mobility
+from app.schemas.epidemiology import MobilityODResponse, MobilityODItem, MobilityArcResponse, MobilityArcItem
+from app.services.epidemiology import get_mobility, get_mobility_od_map as load_mobility_od_map
 
 router = APIRouter()
 
@@ -28,3 +28,25 @@ def get_mobility_od(
         municipio_code=municipio_code,
         records=records
     )
+
+
+@router.get("/mobility/od-map", response_model=MobilityArcResponse, summary="Mapa OD agregado por departamento")
+def get_mobility_od_map(limit: int = Query(200, ge=10, le=1000)):
+    df = load_mobility_od_map(limit=limit)
+    if df.empty:
+        raise HTTPException(status_code=404, detail="No OD mobility data found")
+
+    records = [
+        MobilityArcItem(
+            origin_code=str(row["origin_code"]),
+            dest_code=str(row["dest_code"]),
+            origin_lat=float(row["origin_lat"]),
+            origin_lon=float(row["origin_lon"]),
+            dest_lat=float(row["dest_lat"]),
+            dest_lon=float(row["dest_lon"]),
+            passengers=float(row["passengers"]),
+        )
+        for _, row in df.iterrows()
+    ]
+
+    return MobilityArcResponse(arcs=records, total=len(records))

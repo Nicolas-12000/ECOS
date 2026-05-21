@@ -203,7 +203,7 @@ export default function TendenciasDashboard() {
           <AlertCircle className="w-5 h-5 text-(--color-danger) shrink-0" />
           <div>
             <p className="font-bold text-(--color-danger) text-sm">Error de conexión</p>
-            <p className="text-sm text-(--color-primary)">No se pudo cargar la información de tendencias. Verifica que el backend esté activo.</p>
+            <p className="text-sm text-(--color-primary)">No se pudo cargar la informacion. Revisa tu conexion e intenta de nuevo.</p>
           </div>
         </div>
       )}

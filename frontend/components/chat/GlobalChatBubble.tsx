@@ -55,7 +55,7 @@ export function GlobalChatBubble() {
       if (!res.ok) throw new Error(data.detail || "Error")
       setMessages(p => [...p, { role: "assistant", content: data.answer, sources: data.sources }])
     } catch {
-      setMessages(p => [...p, { role: "assistant", content: "⚠️ No pude conectar con el servidor. Verifica que el backend esté activo en localhost:8000." }])
+      setMessages(p => [...p, { role: "assistant", content: "⚠️ No pudimos conectarnos en este momento. Intenta de nuevo en unos minutos." }])
     } finally {
       setIsLoading(false)
     }
@@ -89,7 +89,7 @@ export function GlobalChatBubble() {
 
       {/* ── Chat Window ── */}
       <div
-        className={`fixed bottom-6 right-6 z-9999 w-[400px] max-w-[calc(100vw-2rem)] h-[560px] max-h-[calc(100vh-6rem)] flex flex-col rounded-2xl overflow-hidden transition-all duration-300 origin-bottom-right ${
+        className={`fixed bottom-6 right-6 z-9999 w-100 max-w-[calc(100vw-2rem)] h-140 max-h-[calc(100vh-6rem)] flex flex-col rounded-2xl overflow-hidden transition-all duration-300 origin-bottom-right ${
           isOpen
             ? "scale-100 opacity-100"
             : "scale-95 opacity-0 pointer-events-none"

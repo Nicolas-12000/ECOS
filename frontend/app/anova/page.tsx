@@ -6,7 +6,6 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Button } from "@/components/ui/Button"
 import { LottieLoader } from "@/components/ui/LottieLoader"
 import {
-  BarChart,
   HelpCircle,
   BookOpen,
   ArrowRightLeft,
@@ -29,15 +28,71 @@ const YEAR_COLORS: Record<string, string> = {
   "5": "#0891B2", // Cyan
 }
 
-// Available years by table
-const TABLE_YEARS = {
-  fact_core_weekly: Array.from({ length: 16 }, (_, i) => 2007 + i), // 2007 - 2022
-  dengue_kaggle_dataset: Array.from({ length: 13 }, (_, i) => 2007 + i), // 2007 - 2019
-  anova_dataset: Array.from({ length: 12 }, (_, i) => 2011 + i), // 2011 - 2022
-}
-
 type TableType = "fact_core_weekly" | "dengue_kaggle_dataset" | "anova_dataset"
 type DiseaseType = "dengue" | "zika" | "malaria" | "chikungunya"
+
+interface DescriptiveStats {
+  group: string
+  sum: number
+}
+
+interface TukeyResult {
+  group_a: string
+  group_b: string
+  mean_diff_original: number
+  ci_lower: number
+  ci_upper: number
+  p_value: number
+  significant: boolean
+  narrative: string
+}
+
+interface TestResult {
+  significant: boolean
+  p_value: number | null
+}
+
+interface AnovaTestResult extends TestResult {
+  f_statistic: number | null
+}
+
+interface KruskalTestResult extends TestResult {
+  h_statistic: number | null
+}
+
+interface LeveneTestResult extends TestResult {
+  statistic: number | null
+}
+
+interface ChartRow {
+  week: number
+  [key: string]: number | null | undefined
+}
+
+interface AnovaResponseData {
+  chart_data: ChartRow[]
+  metadata: {
+    analyzed_groups: string[]
+  }
+  interpretation: {
+    title: string
+    summary: string
+    epidemiological_impact: string
+  }
+  hypotheses: {
+    outcome: "null" | "alternative"
+    null: string
+    alternative: string
+    conclusion: string
+  }
+  hypothesis_tests: {
+    anova: AnovaTestResult
+    kruskal_wallis: KruskalTestResult
+    levene_homocedasticity: LeveneTestResult
+  }
+  descriptives: DescriptiveStats[]
+  tukey_hsd: TukeyResult[]
+}
 
 export default function AnovaPage() {
   const [tables, setTables] = useState<TableType[]>(["fact_core_weekly"])
@@ -45,7 +100,7 @@ export default function AnovaPage() {
   const [selectedYears, setSelectedYears] = useState<number[]>([2015, 2016, 2017, 2019])
   const [transform, setTransform] = useState<boolean>(false)
 
-  const [data, setData] = useState<any>(null)
+  const [data, setData] = useState<AnovaResponseData | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
   const [hoveredWeek, setHoveredWeek] = useState<number | null>(null)
@@ -80,14 +135,13 @@ export default function AnovaPage() {
         const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
         const res = await fetch(`${apiBase}${url}`)
         if (!res.ok) {
-          const errData = await res.json().catch(() => ({}))
-          throw new Error(errData.detail || "Error al obtener los datos del servidor.")
+          throw new Error("No se pudieron cargar los datos solicitados.")
         }
 
         const json = await res.json()
         setData(json)
-      } catch (err: any) {
-        setError(err.message || "Error al conectar con la API de análisis estadístico.")
+      } catch {
+        setError("No se pudo cargar la informacion. Revisa tu conexion e intenta de nuevo.")
       } finally {
         setLoading(false)
       }
@@ -152,10 +206,11 @@ export default function AnovaPage() {
 
     // Find Max Value for Scaling Y
     let maxVal = 0
-    chartData.forEach((row: any) => {
+    chartData.forEach((row: ChartRow) => {
       groups.forEach((g: string) => {
-        if (row[g] !== undefined && row[g] > maxVal) {
-          maxVal = row[g]
+        const val = row[g]
+        if (val !== undefined && val !== null && val > maxVal) {
+          maxVal = val
         }
       })
     })
@@ -184,7 +239,7 @@ export default function AnovaPage() {
 
     return (
       <div className="relative w-full overflow-x-auto">
-        <svg viewBox={`0 0 ${width} ${height}`} className="w-full min-w-[700px] h-auto select-none overflow-visible">
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-full min-w-175 h-auto select-none overflow-visible">
           {/* Background Grid Lines (Horizontal) */}
           {Array.from({ length: yTicks + 1 }).map((_, i) => {
             const val = (maxVal / yTicks) * i
@@ -244,7 +299,7 @@ export default function AnovaPage() {
             const color = getGroupColor(g)
             let pathD = ""
 
-            chartData.forEach((row: any, idx: number) => {
+            chartData.forEach((row: ChartRow) => {
               const week = row.week
               const val = row[g]
               if (val !== undefined && val !== null) {
@@ -287,7 +342,7 @@ export default function AnovaPage() {
               {/* Highlight points on lines */}
               {groups.map((g: string) => {
                 const color = getGroupColor(g)
-                const row = chartData.find((r: any) => r.week === hoveredWeek)
+                const row = chartData.find((r: ChartRow) => r.week === hoveredWeek)
                 const val = row ? row[g] : null
                 if (val !== null && val !== undefined) {
                   return (
@@ -308,7 +363,7 @@ export default function AnovaPage() {
           )}
 
           {/* Invisible interactive vertical segments for hover */}
-          {chartData.map((row: any) => {
+          {chartData.map((row: ChartRow) => {
             const week = row.week
             const x = getX(week)
             return (
@@ -329,14 +384,14 @@ export default function AnovaPage() {
 
         {/* Dynamic Tooltip on Hover */}
         {hoveredWeek !== null && (
-          <div className="absolute top-2 right-2 bg-(--color-surface) border border-(--color-border-strong) rounded-md p-3 shadow-md text-xs z-20 min-w-[200px] animate-fade-in">
+          <div className="absolute top-2 right-2 bg-(--color-surface) border border-(--color-border-strong) rounded-md p-3 shadow-md text-xs z-20 min-w-50 animate-fade-in">
             <p className="font-bold text-(--color-primary) border-b border-(--color-border) pb-1 mb-2 font-display">
               Semana Epidemiológica {hoveredWeek}
             </p>
             <div className="space-y-1.5">
               {groups.map((g: string) => {
                 const color = getGroupColor(g)
-                const row = chartData.find((r: any) => r.week === hoveredWeek)
+                const row = chartData.find((r: ChartRow) => r.week === hoveredWeek)
                 const val = row ? row[g] : null
                 return (
                   <div key={`tooltip-row-${g}`} className="flex items-center justify-between gap-4">
@@ -507,7 +562,7 @@ export default function AnovaPage() {
                 <strong>¿Qué es ANOVA?</strong> Es una prueba estadística que compara las medias de 3 o más grupos para ver si al menos un grupo es diferente de los otros. En nuestro caso, los grupos son los **años** y el dato son los **casos de dengue semanales**.
               </p>
               <p>
-                <strong>Tukey HSD (Post-hoc):</strong> Si el ANOVA dice "hay diferencias", no nos dice *dónde*. Tukey realiza comparaciones por parejas para identificar qué pares de años específicos difieren significativamente entre sí de forma individual.
+                <strong>Tukey HSD (Post-hoc):</strong> Si el ANOVA dice &quot;hay diferencias&quot;, no nos dice *dónde*. Tukey realiza comparaciones por parejas para identificar qué pares de años específicos difieren significativamente entre sí de forma individual.
               </p>
               <p>
                 <strong>Kruskal-Wallis:</strong> Es una alternativa no paramétrica robusta que no asume normalidad. Es útil en epidemiología porque las curvas epidémicas suelen ser asimétricas y con picos muy pronunciados.
@@ -520,11 +575,11 @@ export default function AnovaPage() {
         <div className="lg:col-span-8 flex flex-col gap-6">
 
           {loading ? (
-            <div className="bg-(--color-surface) border border-(--color-border) rounded-md py-20 px-8 flex items-center justify-center min-h-[400px]">
+            <div className="bg-(--color-surface) border border-(--color-border) rounded-md py-20 px-8 flex items-center justify-center min-h-100">
               <LottieLoader variant="loading" message="Procesando datos en base de datos y calculando pruebas estadísticas..." />
             </div>
           ) : error ? (
-            <div className="bg-(--color-surface) border border-(--color-border) rounded-md py-12 px-6 text-center flex flex-col items-center justify-center min-h-[400px] gap-4">
+            <div className="bg-(--color-surface) border border-(--color-border) rounded-md py-12 px-6 text-center flex flex-col items-center justify-center min-h-100 gap-4">
               <div className="w-12 h-12 rounded-full bg-(--color-danger-alpha) flex items-center justify-center">
                 <AlertCircle className="w-6 h-6 text-(--color-danger)" />
               </div>
@@ -587,7 +642,7 @@ export default function AnovaPage() {
 
                   {/* Hypotheses Explanation */}
                   <div className="mt-4 pt-4 border-t border-(--color-border) grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className={`p-3 rounded-sm border ${data.hypotheses.outcome === "null" ? "bg-(--color-success-alpha)/10 border-(--color-success-glow)" : "bg-gray-50 border-gray-200"}`}>
+                    <div className={`p-3 rounded-sm border ${data.hypotheses.outcome === "null" ? "bg-success-alpha/10 border-(--color-success-glow)" : "bg-gray-50 border-gray-200"}`}>
                       <h5 className="text-[10px] font-bold uppercase tracking-widest text-(--color-primary) mb-1 flex items-center gap-2">
                         <CheckCircle2 className={`w-3 h-3 ${data.hypotheses.outcome === "null" ? "text-(--color-success)" : "text-gray-400"}`} />
                         Hipótesis Nula (H₀)
@@ -596,7 +651,7 @@ export default function AnovaPage() {
                         {data.hypotheses.null}
                       </p>
                     </div>
-                    <div className={`p-3 rounded-sm border ${data.hypotheses.outcome === "alternative" ? "bg-(--color-danger-alpha)/10 border-(--color-danger-glow)" : "bg-gray-50 border-gray-200"}`}>
+                    <div className={`p-3 rounded-sm border ${data.hypotheses.outcome === "alternative" ? "bg-danger-alpha/10 border-(--color-danger-glow)" : "bg-gray-50 border-gray-200"}`}>
                       <h5 className="text-[10px] font-bold uppercase tracking-widest text-(--color-primary) mb-1 flex items-center gap-2">
                         <AlertCircle className={`w-3 h-3 ${data.hypotheses.outcome === "alternative" ? "text-(--color-danger)" : "text-gray-400"}`} />
                         Hipótesis Alternativa (H₁)
@@ -605,7 +660,7 @@ export default function AnovaPage() {
                         {data.hypotheses.alternative}
                       </p>
                     </div>
-                    <div className="md:col-span-2 flex items-center justify-center gap-2 py-1 px-3 bg-(--color-tertiary-alpha)/10 rounded-full border border-(--color-tertiary-glow) w-fit mx-auto">
+                    <div className="md:col-span-2 flex items-center justify-center gap-2 py-1 px-3 bg-tertiary-alpha/10 rounded-full border border-(--color-tertiary-glow) w-fit mx-auto">
                       <Scale className="w-3.5 h-3.5 text-(--color-tertiary)" />
                       <span className="text-xs font-bold text-(--color-tertiary)">
                         Conclusión: {data.hypotheses.conclusion}
@@ -638,7 +693,7 @@ export default function AnovaPage() {
                   <div className="flex flex-wrap justify-center items-center gap-4 mt-4 border-t border-(--color-border) pt-4">
                     {data.metadata.analyzed_groups.map((g: string, idx: number) => {
                       const color = YEAR_COLORS[String(idx % 6)]
-                      const desc = data.descriptives.find((d: any) => d.group === g)
+                      const desc = data.descriptives.find((d: DescriptiveStats) => d.group === g)
                       return (
                         <div key={`legend-${g}`} className="flex items-center gap-2 text-xs bg-(--color-background) border border-(--color-border) px-2.5 py-1 rounded-sm">
                           <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: color }} />
@@ -754,10 +809,10 @@ export default function AnovaPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-(--color-border)">
-                      {data.tukey_hsd.map((row: any, idx: number) => (
+                      {data.tukey_hsd.map((row: TukeyResult, idx: number) => (
                         <tr
                           key={`tukey-row-${idx}`}
-                          className={`hover:bg-(--color-surface-hover) transition-colors ${row.significant ? "bg-(--color-tertiary-alpha)/20" : ""
+                          className={`hover:bg-(--color-surface-hover) transition-colors ${row.significant ? "bg-tertiary-alpha/20" : ""
                             }`}
                         >
                           <td className="py-3 px-4 font-bold text-(--color-primary) font-mono text-[10px]">
@@ -781,7 +836,7 @@ export default function AnovaPage() {
                               {row.significant ? "Diferente" : "Similar"}
                             </Badge>
                           </td>
-                          <td className="py-3 px-4 text-xs text-(--color-secondary) max-w-[280px]">
+                          <td className="py-3 px-4 text-xs text-(--color-secondary) max-w-70">
                             {row.narrative}
                           </td>
                         </tr>

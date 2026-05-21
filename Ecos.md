@@ -17,11 +17,11 @@
 5. Modelos de IA y metodología CRISP-ML
 6. Stack tecnológico detallado
 7. **Guía visual de dashboards** ← *El corazón del proyecto*
-   - Dashboard 1 — Centro de Comando Nacional (Plotly Dash)
-   - Dashboard 2 — Inteligencia de Señales Tempranas (Next.js)
-   - Dashboard 3 — Mapa de Calor Movilidad × Enfermedad (Plotly Dash + Kepler.gl)
-   - Dashboard 4 — Monitor de Noticias Scrapeadas (Next.js)
-   - Dashboard 5 — RAG Conversacional (Next.js)
+    - Dashboard 1 — Centro de Comando Nacional (Power BI embed)
+    - Dashboard 2 — Inteligencia de Señales Tempranas (Next.js)
+    - Dashboard 3 — Movilidad × Enfermedad (Next.js + API)
+    - Dashboard 4 — Monitor de Noticias Scrapeadas (Next.js)
+    - Dashboard 5 — RAG Conversacional (bubble global)
 8. Limitaciones técnicas reales y cómo las manejamos
 9. Métricas de evaluación
 10. Impacto esperado
@@ -42,7 +42,7 @@ La propuesta técnica se articula en tres capas que se comunican en tiempo real:
 │  WEB PORTAL  ·  Next.js 15 + Tailwind                       │
 │  Monitor de Noticias · Google Trends Alerts · Chat RAG      │
 ├─────────────────────────────────────────────────────────────┤
-│  DASHBOARDS  ·  Plotly Dash (100% Python · 100% gratuito)  │
+│  DASHBOARDS  ·  Power BI + Next.js (embed)                  │
 │  Centro de Comando · Movilidad × Enfermedad · Tendencias    │
 ├─────────────────────────────────────────────────────────────┤
 │  BACKEND  ·  FastAPI + PySpark + XGBoost + Prophet          │
@@ -59,7 +59,7 @@ La propuesta técnica se articula en tres capas que se comunican en tiempo real:
 | 🟡 Monitor de noticias vivo | Feed con NLP que clasifica y georreferencia noticias epidemiológicas de los últimos 30 días |
 | 🟢 RAG conversacional | Asistente que responde en lenguaje natural citando las fuentes y explicando las variables SHAP |
 | 🔵 Explicabilidad SHAP | Cada predicción muestra cuánto contribuyó cada variable (clima, movilidad, tendencias) |
-| 🟣 Plotly Dash + Next.js (100% gratuito) | Stack de visualización completamente open-source, embebible, sin licencias ni servicios de pago. Demo reproducible en cualquier laptop con Docker. |
+| 🟣 Power BI + Next.js (100% gratuito) | Stack de visualizacion embebible, sin licencias ni servicios de pago. Demo reproducible en cualquier laptop con Docker. |
 
 ---
 
@@ -363,31 +363,27 @@ def fetch_weather_weekly(lat, lon, start_date, end_date):
 ecos/
 ├── crisp-ml/
 │   ├── 01-business-understanding.md      ← Problema, usuario final, KPIs
-│   ├── 02-data-understanding.ipynb       ← EDA de los 6 datasets
-│   ├── 03-data-preparation.ipynb         ← ETL con PySpark
-│   ├── 04-modeling.ipynb                 ← Prophet + XGBoost + tuning
-│   ├── 05-evaluation.ipynb               ← Walk-forward validation + SHAP
+│   ├── 02-data-understanding.md          ← EDA de los 6 datasets
+│   ├── 03-data-preparation.md            ← ETL con PySpark
+│   ├── 04-modeling.md                    ← Prophet + XGBoost + tuning
+│   ├── 05-evaluation.md                  ← Walk-forward validation + SHAP
 │   └── 06-deployment.md                  ← Docker, API, manual de usuario
-├── data/
-│   ├── raw/                              ← CSVs originales de datos.gov.co
-│   ├── processed/                        ← Parquet por municipio/semana
-│   └── features/                         ← Feature store listo para ML
-├── src/
-│   ├── api/                              ← FastAPI endpoints
-│   ├── etl/                              ← PySpark pipelines
-│   ├── models/                           ← XGBoost + Prophet + SHAP
-│   ├── scraping/                         ← pytrends + feedparser + pdfplumber
-│   ├── rag/                              ← LangChain + Groq (LLaMA 3)
-│   └── alerts/                           ← Motor de alertas + email
-├── powerbi/                              ← Archivos .pbix exportados
-├── web/                                  ← Next.js 15 portal
+├── backend/
+│   └── app/                              ← FastAPI endpoints y servicios
+├── frontend/                             ← Next.js 15 portal
 │   ├── app/
 │   │   ├── page.tsx                      ← Landing / overview
 │   │   ├── noticias/                     ← Monitor de noticias
 │   │   ├── tendencias/                   ← Google Trends alerts
-│   │   ├── chat/                         ← RAG conversacional
+│   │   ├── dashboard/                    ← Centro de comando + movilidad
 │   │   └── alertas/                      ← Sistema de alertas activas
 │   └── components/
+├── dashboard/
+│   └── EcosDashboard.pbix                ← Power BI exportado
+├── data/
+│   ├── raw/                              ← CSVs originales de datos.gov.co
+│   ├── processed/                        ← Parquet por municipio/semana
+│   └── features/                         ← Feature store listo para ML
 ├── tests/
 ├── docker-compose.yml
 ├── Dockerfile
@@ -488,7 +484,7 @@ Respuesta con fuentes citadas + datos SHAP + recomendación de acción
 | Scraping | pytrends + feedparser + pdfplumber | Especializadas, sin dependencias pesadas | ✅ Gratuito |
 | NLP noticias | spaCy es_core_news_sm + scikit-learn | NER en español + clasificador liviano | ✅ Gratuito |
 | RAG | LangChain 0.2 + ChromaDB + Groq | Groq free tier: ~30 RPM / 6000 TPM — suficiente para demo y uso moderado. Limitación documentada en §8. | ✅ Gratuito (con límites) |
-| Dashboard epidemiológico | **Plotly Dash 2.x** | 100% Python, 100% open-source, sin licencias, embebible | ✅ Gratuito |
+| Dashboard epidemiológico | **Power BI + Next.js** | Embebido en el portal web, sin dependencias Python en frontend | ✅ Gratuito |
 | Portal web | Next.js 15 + Tailwind + shadcn/ui | SSR, App Router, despliegue en Vercel o Docker | ✅ Gratuito |
 | Mapas de flujo OD | Kepler.gl (MIT License) | Arcos origen-destino, sin costo | ✅ Gratuito |
 | Gráficos web | Recharts + D3.js | Integración nativa con React | ✅ Gratuito |
@@ -509,7 +505,7 @@ Respuesta con fuentes citadas + datos SHAP + recomendación de acción
 
 ### Dashboard 1 — Centro de Comando Nacional
 
-**Herramienta:** Plotly Dash 2.x (Python · open-source · gratuito) — servido por FastAPI, embebido en Next.js via iframe
+**Herramienta:** Power BI (embed) — embebido en Next.js via iframe
 **Audiencia:** Ministerio de Salud, INS, secretarías departamentales
 **Actualización:** Semanal automática (pipeline corre cada lunes)
 
@@ -556,13 +552,11 @@ Respuesta con fuentes citadas + datos SHAP + recomendación de acción
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-**Componentes Plotly Dash utilizados:**
-- `dcc.Graph` con `go.Choropleth` — mapa coroplético Colombia, escala verde-amarillo-rojo
-- `dcc.Graph` con `go.Scatter` + banda de confianza `go.Scatter(fill='tonexty')` — predicción vs. realidad
-- `dcc.Graph` con `go.Bar` horizontal — SHAP values por variable
-- `html.Div` con KPI cards — contador de alertas activas por enfermedad
-- `dcc.Dropdown` — filtros por departamento, enfermedad, horizonte temporal
-- `dash_bootstrap_components` — layout responsivo sin CSS custom
+**Componentes Power BI utilizados:**
+- Mapa coroplético Colombia, escala verde-amarillo-rojo
+- Serie temporal prediccion vs. casos reportados
+- Barras SHAP por variable
+- KPI cards por enfermedad y alertas activas
 
 **Datos que consume (endpoints FastAPI):**
 ```
@@ -672,9 +666,9 @@ FEATURE_WEIGHTS = {
 
 ---
 
-### Dashboard 3 — Mapa de Calor Movilidad × Enfermedad
+### Dashboard 3 — Movilidad × Enfermedad
 
-**Herramienta:** Plotly Dash + Kepler.gl (ambos open-source · gratuitos) — Kepler.gl para los arcos OD, Dash para las tablas y scatter plots
+**Herramienta:** Next.js + API de movilidad (series y KPIs). Mapa OD con arcos en roadmap con Kepler.gl/Deck.gl.
 **Audiencia:** Equipos de rastreo de contactos, planificadores de respuesta
 **Actualización:** Semanal con datos de movilidad intermunicipal
 
@@ -837,7 +831,7 @@ config = {
 **Componente Next.js — estructura:**
 
 ```typescript
-// /web/app/noticias/page.tsx
+// /frontend/app/noticias/page.tsx
 import { NewsCard } from '@/components/NewsCard'
 import { MentionsTimeline } from '@/components/MentionsTimeline'
 import { NewsHeatMap } from '@/components/NewsHeatMap'
@@ -871,7 +865,7 @@ interface NewsArticle {
 
 ### Dashboard 5 — RAG Conversacional
 
-**Herramienta:** Next.js 15 — interfaz de chat tipo assistant
+**Herramienta:** Next.js 15 — bubble de chat global (sin pagina dedicada)
 **Audiencia:** Cualquier funcionario de salud sin conocimiento técnico
 **Backend:** LangChain + ChromaDB + Groq (LLaMA 3.1 70B)
 
@@ -1258,16 +1252,17 @@ Las metas son diferenciadas porque pretender el mismo AUC para zika (1 ciclo epi
 ### Semanas 5–6 — Dashboards y portal web
 
 - [ ] Power BI: Dashboard 1 (Centro de Comando) completo
-- [ ] Power BI: Dashboard 3 (Movilidad × Enfermedad) completo
-- [ ] Next.js: Portal con autenticación básica
-- [ ] Next.js: Dashboard 2 (Google Trends alerts) — página `/tendencias`
-- [ ] Next.js: Dashboard 4 (Monitor de Noticias) — página `/noticias`
+- [ ] Next.js: Dashboard 3 (Movilidad × Enfermedad) — panel de series y KPIs
+- [ ] Next.js: Portal con autenticacion basica
+- [ ] Next.js: Dashboard 2 (Google Trends alerts) — pagina `/tendencias`
+- [ ] Next.js: Dashboard 4 (Monitor de Noticias) — pagina `/noticias`
+- [ ] Next.js: Alertas activas — pagina `/alertas`
 
 ### Semana 7 — RAG y sistema de alertas
 
 - [ ] ChromaDB indexado con datos del modelo + boletines INS
 - [ ] LangChain pipeline RAG + Groq (LLaMA 3.1)
-- [ ] Interfaz de chat en Next.js (`/chat`)
+- [ ] Bubble de chat global en Next.js (sin pagina dedicada)
 - [ ] Sistema de alertas automáticas por email (reportlab PDF)
 
 ### Semana 8 — Pulido y presentación
@@ -1315,8 +1310,8 @@ Las metas son diferenciadas porque pretender el mismo AUC para zika (1 ciclo epi
 GitHub:     https://github.com/[equipo]/ecos-colombia
 Licencia:   MIT (reutilizable por entidades públicas sin restricciones)
 Demo:       Docker Compose local · localhost:3000 (web) · localhost:8000 (API)
-Docs API:   localhost:8000/docs  (Swagger automático)
-Power BI:   .pbix incluidos en /powerbi + publicados en Power BI Service
+Docs API:   localhost:8000/docs  (Swagger automatico)
+Power BI:   .pbix en /dashboard/EcosDashboard.pbix + publicado en Power BI Service
 Registro:   https://herramientas.datos.gov.co/usos
 ```
 

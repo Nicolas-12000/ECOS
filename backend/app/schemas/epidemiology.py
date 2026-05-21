@@ -174,6 +174,19 @@ class MobilityODResponse(BaseModel):
     municipio_code: str
     records: list[MobilityODItem]
 
+class MobilityArcItem(BaseModel):
+    origin_code: str
+    dest_code: str
+    origin_lat: float
+    origin_lon: float
+    dest_lat: float
+    dest_lon: float
+    passengers: float
+
+class MobilityArcResponse(BaseModel):
+    arcs: list[MobilityArcItem]
+    total: int
+
 class WhatIfRequest(BaseModel):
     municipio_code: str
     disease: str

@@ -174,7 +174,7 @@ export default function NoticiasDashboard() {
               <AlertTriangle className="w-5 h-5 text-(--color-danger) shrink-0" />
               <div>
                 <p className="font-bold text-(--color-danger) text-sm">Error de conexión</p>
-                <p className="text-sm text-(--color-primary)">No se pudo cargar el feed. Verifica que el backend esté corriendo.</p>
+                <p className="text-sm text-(--color-primary)">No se pudo cargar el feed. Revisa tu conexion e intenta de nuevo.</p>
               </div>
             </div>
           )}

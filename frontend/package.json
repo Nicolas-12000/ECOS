@@ -9,15 +9,20 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@deck.gl/core": "^9.0.29",
+    "@deck.gl/layers": "^9.0.29",
+    "@deck.gl/react": "^9.0.29",
     "@radix-ui/react-slot": "^1.2.0",
     "@tailwindcss/postcss": "^4.2.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lottie-react": "^2.4.1",
     "lucide-react": "^0.475.0",
+    "maplibre-gl": "^4.7.1",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest",
+    "react-map-gl": "^7.1.7",
     "swr": "^2.4.1",
     "tailwind-merge": "^2.6.0",
     "tailwindcss": "^4.2.4"

@@ -25,6 +25,8 @@ _PARQUET_FRESH = REPO_ROOT / "data/processed/curated_weekly_fresh_parquet"
 _CSV_FRESH = REPO_ROOT / "data/processed/curated_weekly_fresh_csv"
 _PARQUET_LEGACY = REPO_ROOT / "data/processed/curated_weekly_v0_parquet"
 _CSV_LEGACY = REPO_ROOT / "data/processed/curated_weekly_v0_csv"
+_MOBILITY_RAW = REPO_ROOT / "data/raw/movilidad_nacional_eh75-8ah6.csv"
+_DIM_DEPARTAMENTOS = REPO_ROOT / "data/processed/curated_weekly_csv_dim_departamentos"
 
 VALID_DISEASES = {"dengue", "chikungunya", "zika", "malaria"}
 OUTBREAK_THRESHOLD = 5.0
@@ -213,3 +215,74 @@ def get_mobility(municipio_code: str, limit: int = 52) -> pd.DataFrame:
         .head(limit)
     )
     return subset
+
+
+def _load_departamento_coords() -> dict[str, tuple[float, float]]:
+    """Carga centroides de departamentos (lat, lon) desde el dataset curado."""
+    if not _DIM_DEPARTAMENTOS.exists():
+        return {}
+    csv_files = sorted(_DIM_DEPARTAMENTOS.glob("*.csv"))
+    if not csv_files:
+        return {}
+    df = pd.read_csv(csv_files[0])
+    if "departamento_code" not in df.columns:
+        return {}
+    coords = {}
+    for _, row in df.iterrows():
+        code = str(row["departamento_code"]).zfill(2)
+        lat = row.get("latitude")
+        lon = row.get("longitude")
+        if pd.notna(lat) and pd.notna(lon):
+            coords[code] = (float(lat), float(lon))
+    return coords
+
+
+@lru_cache(maxsize=1)
+def get_mobility_od_map(limit: int = 200) -> pd.DataFrame:
+    """Agrega flujos OD por departamento para visualizacion en mapa de arcos."""
+    if not _MOBILITY_RAW.exists():
+        return pd.DataFrame()
+
+    coords = _load_departamento_coords()
+    if not coords:
+        return pd.DataFrame()
+
+    usecols = ["MUNICIPIO_ORIGEN_RUTA", "MUNICIPIO_DESTINO_RUTA", "PASAJEROS"]
+    agg = {}
+
+    try:
+        for chunk in pd.read_csv(_MOBILITY_RAW, usecols=usecols, chunksize=200000):
+            chunk = chunk.dropna(subset=["MUNICIPIO_ORIGEN_RUTA", "MUNICIPIO_DESTINO_RUTA", "PASAJEROS"])
+            chunk["origin"] = chunk["MUNICIPIO_ORIGEN_RUTA"].astype(str).str.zfill(5).str[:2]
+            chunk["dest"] = chunk["MUNICIPIO_DESTINO_RUTA"].astype(str).str.zfill(5).str[:2]
+            chunk = chunk[chunk["origin"] != chunk["dest"]]
+            grouped = chunk.groupby(["origin", "dest"], as_index=False)["PASAJEROS"].sum()
+            for _, row in grouped.iterrows():
+                key = (row["origin"], row["dest"])
+                agg[key] = agg.get(key, 0.0) + float(row["PASAJEROS"])
+    except Exception as exc:
+        logger.error("Error aggregating OD mobility: %s", exc)
+        return pd.DataFrame()
+
+    records = []
+    for (origin, dest), passengers in agg.items():
+        if origin not in coords or dest not in coords:
+            continue
+        origin_lat, origin_lon = coords[origin]
+        dest_lat, dest_lon = coords[dest]
+        records.append({
+            "origin_code": origin,
+            "dest_code": dest,
+            "origin_lat": origin_lat,
+            "origin_lon": origin_lon,
+            "dest_lat": dest_lat,
+            "dest_lon": dest_lon,
+            "passengers": passengers,
+        })
+
+    if not records:
+        return pd.DataFrame()
+
+    df = pd.DataFrame(records)
+    df = df.sort_values("passengers", ascending=False).head(limit)
+    return df.reset_index(drop=True)
