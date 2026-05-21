@@ -3,13 +3,14 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState } from "react"
-import { Activity, Menu, X, TrendingUp, Newspaper, BarChart3 } from "lucide-react"
+import { Activity, Menu, X, TrendingUp, Newspaper, BarChart3, Scale } from "lucide-react"
 
 const NAV_LINKS = [
   { href: "/", label: "Inicio", icon: Activity },
   { href: "/tendencias", label: "Tendencias", icon: TrendingUp },
   { href: "/noticias", label: "Noticias", icon: Newspaper },
   { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
+  { href: "/anova", label: "ANOVA", icon: Scale },
 ]
 
 export function Navbar() {

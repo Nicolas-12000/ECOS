@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Activity, TrendingUp, Newspaper, ShieldAlert, Map, Zap, ArrowRight, Database, CloudSun, Radio } from "lucide-react"
+import { Activity, TrendingUp, Newspaper, ShieldAlert, Map, Zap, ArrowRight, Database, CloudSun, Radio, Scale } from "lucide-react"
 import { Button } from "@/components/ui/Button"
 import { Badge } from "@/components/ui/Badge"
 import { LottieLoader } from "@/components/ui/LottieLoader"
@@ -34,6 +34,13 @@ const MODULES = [
     description: "Correlación entre flujos de pasajeros intermunicipales y propagación de brotes. Mapa OD con arcos de riesgo.",
     href: "/dashboard",
     tag: "GEO DATA",
+  },
+  {
+    icon: Scale,
+    title: "Pruebas ANOVA",
+    description: "Comparador estadístico multianual para contrastar la severidad del dengue a lo largo de los años con análisis post-hoc Tukey y lenguaje claro.",
+    href: "/anova",
+    tag: "ESTADÍSTICA",
   },
 ]
 

@@ -15,6 +15,7 @@ from app.api.routes.mobility import router as mobility_router
 from app.api.routes.timeseries import router as timeseries_router
 from app.api.routes.whatif import router as whatif_router
 from app.api.routes.report import router as report_router
+from app.api.routes.anova import router as anova_router
 
 api_router = APIRouter()
 
@@ -40,6 +41,7 @@ routers = [
 	(timeseries_router, "timeseries"),
 	(whatif_router, "whatif"),
 	(report_router, "report"),
+	(anova_router, "anova"),
 ]
 
 for prefix in api_prefixes:
