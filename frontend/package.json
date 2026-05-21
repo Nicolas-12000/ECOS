@@ -1,26 +1,39 @@
 {
-  "name": "frontend",
+  "name": "ecos-frontend",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "next lint"
   },
   "dependencies": {
-    "next": "16.2.4",
-    "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "@deck.gl/core": "^9.0.29",
+    "@deck.gl/layers": "^9.0.29",
+    "@deck.gl/react": "^9.0.29",
+    "@radix-ui/react-slot": "^1.2.0",
+    "@tailwindcss/postcss": "^4.2.4",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lottie-react": "^2.4.1",
+    "lucide-react": "^0.475.0",
+    "maplibre-gl": "^4.7.1",
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "react-map-gl": "^7.1.7",
+    "swr": "^2.4.1",
+    "tailwind-merge": "^2.6.0",
+    "tailwindcss": "^4.2.4"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
+    "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.2.4",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "eslint-config-next": "latest",
+    "postcss": "^8.4.47",
+    "typescript": "^5.5.0"
   }
 }
