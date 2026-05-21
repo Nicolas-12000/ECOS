@@ -1,20 +1,77 @@
-# Python
+# ==========================================
+# ECOS Project - Robust .gitignore
+# ==========================================
+
+# ------------------------------------------
+# Python & Virtual Environments
+# ------------------------------------------
 __pycache__/
 *.py[cod]
+*$py.class
 *.pyo
+*.pyd
 .venv/
 venv/
+ENV/
+env/
+venv.bak/
+env.bak/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+.tox/
+.coverage
+htmlcov/
+pip-log.txt
+*.egg-info/
+.eggs/
 
-# Node
+# ------------------------------------------
+# Node.js & Next.js Frontend
+# ------------------------------------------
 node_modules/
+/jspm_packages/
 npm-debug.log*
 yarn-debug.log*
 pnpm-debug.log*
+lerna-debug.log*
 .next/
 out/
 dist/
+build/
+.eslintcache
+.stylelintcache
+.turbo/
+.vercel/
+.tsbuildinfo
 
-# Data artifacts
+# ------------------------------------------
+# Sensitive Files & Environments (Security)
+# ------------------------------------------
+.env
+.env.*
+!.env.example
+*.env
+*.env.local
+*.pem
+*.key
+*.pub
+*.cert
+*.crt
+*.pfx
+*.p12
+secrets/
+credentials*
+id_rsa
+id_ecdsa
+id_ed25519
+
+
+
+# ------------------------------------------
+# Data & Machine Learning Artifacts
+# ------------------------------------------
 data/raw/
 data/processed/
 data/external/
@@ -23,11 +80,27 @@ data/external/
 *.xlsx
 *.joblib
 *.pkl
+*.h5
+*.onnx
+*.pb
+*.pt
+*.pth
+*.tflite
+*.weights
+*.dvc
 
-# Env files
-.env
-.env.*
-!*.example
-
-# OS
+# ------------------------------------------
+# IDE & System Files
+# ------------------------------------------
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Editors
+.vscode/
+.idea/
