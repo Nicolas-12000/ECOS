@@ -18,12 +18,17 @@ Considerado el "Cold Start" mínimo. Predice empleando puramente:
 - El tracking retrospectivo de casos reportados SIVIGILA.
 - Funciones meteorológicas agrupadas mensuales.
 
-### Model V1 (SHAP Enriched)
-`models/model_v1.py`
-Proceso que integra por completo nuestra lógica de negocio basada en captaciones de métricas tempranas:
-- **Agentes Clínicos (`rips_visits_total`):** Incremento de urgencias médicas registradas preliminarmente.
-- **Vulnerabilidad Inmune:** Porcentaje de población vacunada en la etapa epidemiológica a clasificar.
-- **Densidad Viral Dinámica (`mobility_index`):** Transmisiones estimadas entre flujos municipales (terminales terrestres).
+### Modelo Final Híbrido (Prophet + XGBoost)
+`models/model_final.py`
+Nuestra arquitectura de producción integra un modelo híbrido para capturar simultáneamente la tendencia histórica a largo plazo y las señales tempranas:
+1. **Línea base con Prophet:** Ajusta curvas de tendencia, estacionalidad anual y semanal de forma independiente para cada par de municipio y enfermedad. Se entrena **estrictamente en el conjunto histórico** (libre de target leakage).
+2. **Residuos con XGBoost:** El modelo XGBoost se entrena para predecir el residuo (casos reales menos la estimación de Prophet). XGBoost se nutre de variables exógenas de corto plazo:
+   - **Agentes Clínicos (`rips_visits_total`):** Incremento de urgencias médicas registradas preliminarmente.
+   - **Vulnerabilidad Inmune (`vaccination_coverage_pct`):** Cobertura de vacunación anual.
+   - **Densidad Viral Dinámica (`mobility_index`):** Flujos de pasajeros intermunicipales terrestres.
+   - **Señales Web y Medios (`trends_score`, `rss_mentions`):** Búsquedas en Google y noticias locales georreferenciadas.
+3. **Predicción Combinada:** La inferencia final se obtiene sumando la estimación estacional de Prophet y el residuo predicho por XGBoost, recortada a 0 en caso de valores negativos: $\hat{y}_{\text{total}} = \max(0, \hat{y}_{\text{prophet}} + \hat{y}_{\text{residual}})$.
 
 #### Transparencia Predictiva (Explicabilidad SHAP)
-Acuerdos institucionales exigen que cualquier alerta sanitaria esté altamente sustentada legalmente. Por ende, el algoritmo V1 finaliza la regresión entregando el `SHAP Feature Importance Plot`. La métrica descodificada de SHAP (Shapley Additive exPlanations) entrega de forma humana la ponderación matemática del por qué el algoritmo concluyó que un brote comenzará, p. ej.: *"El modelo ha emitido la alerta fundamentándose en un alza del ratio de 24% en RIPS, más la lluvia máxima (40mm) y las tendencias rezagadas del chikungunya hace 2 semanas"*.
+El algoritmo finaliza entregando la importancia de variables por SHAP (Shapley Additive exPlanations) calculada sobre el estimador XGBoost, lo que permite auditar legal y técnicamente cada alerta sanitaria en lenguaje natural.
+

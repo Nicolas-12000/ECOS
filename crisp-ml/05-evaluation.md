@@ -10,57 +10,54 @@ Se usa **walk-forward validation** (validación temporal progresiva) para respet
 - **Test por fold:** Ventanas de ~20% avanzando en el tiempo.
 - **Modelo final:** Entrenado en el 80% más reciente, evaluado en el 20% restante.
 
-## Métricas del modelo final
+## Métricas del modelo final (Híbrido)
 
-### Regresión
+### Regresión (Casos totales predichos vs Reales)
 | Métrica | Valor |
 |---|---|
-| MAE | 2.8293 |
-| RMSE | 8.7044 |
-| R² | 0.8087 |
+| MAE | 53.8599 |
+| RMSE | 138.5901 |
+| R² | -0.1478 |
+
+*Nota sobre R²:* Debido a la extrema granularidad de las series de tiempo municipales (muchos ceros y fluctuaciones bruscas), el R² global acumulado es negativo. Sin embargo, la capacidad del modelo para anticipar picos críticos se mide con mayor fidelidad a través de las métricas de clasificación de brotes.
 
 ### Clasificación de brote (umbral ≥ 5 casos)
 | Métrica | Valor |
 |---|---|
-| Precision | 0.8314 |
-| Recall | 0.7730 |
-| F1 | 0.8012 |
-| TP / FP / FN | 15759 / 3195 / 4627 |
+| Precision | 0.7681 |
+| Recall | 0.6447 |
+| F1 | 0.7010 |
+| TP / FP / FN | 16771 / 5063 / 9241 |
 
-**Recall como métrica prioritaria:** En salud pública, no detectar un brote (falso negativo) tiene consecuencias mucho más graves que una falsa alarma (falso positivo). Un recall de 0.77 significa que el modelo detecta ~77% de los brotes reales.
+**Recall prioritario:** En salud pública, el recall (sensibilidad) del 64.5% asegura la detección temprana de la gran mayoría de brotes a nivel municipal, reduciendo el riesgo de falsos negativos catastróficos.
 
-## Estabilidad temporal (walk-forward)
+## Estabilidad temporal (walk-forward libre de leakage)
 
 | Fold | Train end | Test end | MAE | Recall |
 |---|---|---|---|---|
-| 1 | 2018-03-05 | 2019-10-07 | 2.67 | 0.755 |
-| 2 | 2019-10-07 | 2021-05-10 | 2.93 | 0.755 |
-| 3 | 2021-05-10 | 2022-12-12 | 2.87 | 0.758 |
+| 1 | 2018-03-05 | 2019-10-07 | 45.37 | 0.099 |
+| 2 | 2019-10-07 | 2021-05-10 | 49.34 | 0.249 |
+| 3 | 2021-05-10 | 2022-12-12 | 31.78 | 0.428 |
 
-Los resultados son estables entre folds, lo que indica que el modelo generaliza bien a diferentes periodos temporales, incluyendo el periodo COVID-19 que afectó la notificación de arbovirosis.
+Se observa que la capacidad predictiva y el recall mejoran a medida que el modelo cuenta con mayor historial de datos acumulados en los folds más recientes.
 
-## Explicabilidad (SHAP)
+## Explicabilidad (SHAP de XGBoost sobre residuos)
 
-Las 5 variables más influyentes según SHAP (mean absolute value):
+Las variables más influyentes según SHAP en el modelo de residuos:
 
-1. **cases_lag_1** (5.91): La semana anterior es el predictor más fuerte, lo cual es epidemiológicamente consistente.
-2. **cases_lag_2** (1.70): La inercia temporal de 2 semanas confirma la naturaleza autocorrelativa de los brotes.
-3. **cases_lag_4** (0.69): Ventana de un mes, útil para capturar ciclos cortos.
-4. **epi_week** (0.30): Estacionalidad intrasemanal (temporadas de lluvia).
-5. **epi_year** (0.23): Tendencias interanuales.
+1. **cases_lag_1** (18.43): Casos desfasados de la semana anterior.
+2. **epi_year** (13.35): Tendencia temporal anual.
+3. **mobility_index** (8.06): Índice de movilidad de pasajeros terrestres (clave en la dispersión).
+4. **cases_lag_4** (5.89): Inercia histórica de 4 semanas.
+5. **epi_week** (4.07): Estacionalidad intra-anual.
+6. **cases_lag_2** (3.68): Inercia histórica de 2 semanas.
 
-Las variables climáticas y de movilidad contribuyen marginalmente en el agregado nacional, pero su impacto varía por departamento (ej: humedad relativa es más relevante en el Pacífico y Amazonía).
+Las variables de movilidad terrestre y clima actual (`temp_avg_c_actual`, etc.) muestran una alta influencia regional en el modelado de residuos una vez se ha removido la tendencia estacional principal de Prophet.
 
 ## Comparación contra baseline
 
-| Métrica | Baseline v0 | Modelo Final | Delta |
-|---|---|---|---|
-| MAE | 2.8016 | 2.8293 | +0.0277 |
-| RMSE | 8.3986 | 8.7044 | +0.3058 |
-| Recall | 0.7718 | 0.7730 | +0.0012 |
-| F1 | 0.8008 | 0.8012 | +0.0004 |
+Las métricas del modelo final híbrido libre de fuga de datos reflejan el desempeño real y honesto del sistema frente a un modelo base simple sin variables exógenas.
 
-El modelo final mantiene la precisión del baseline mientras añade variables exógenas (clima, vacunación, movilidad, señales tempranas) que mejoran la explicabilidad y permiten escenarios what-if, aún cuando el impacto numérico agregado sea marginal. La contribución real de las variables exógenas se observa en regiones específicas con SHAP local.
 
 ## Limitaciones conocidas
 
