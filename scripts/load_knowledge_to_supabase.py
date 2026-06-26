@@ -14,11 +14,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(REPO_ROOT / ".env")
 
 DOC_PATHS = [
-    REPO_ROOT / "README.md",
     REPO_ROOT / "Ecos.md",
-    REPO_ROOT / "docs/api.md",
     REPO_ROOT / "docs/data-dictionary.md",
-    REPO_ROOT / "docs/data-lineage.md",
 ]
 
 def chunk_text(text: str, chunk_size: int = 1000) -> list[str]:
@@ -78,10 +75,10 @@ def main() -> int:
                         }
                         cur.execute(
                             """
-                            INSERT INTO public.knowledge_base (content, metadata)
-                            VALUES (%s, %s)
+                            INSERT INTO public.knowledge_base (title, content, source_path, metadata)
+                            VALUES (%s, %s, %s, %s)
                             """,
-                            (chunk, json.dumps(metadata)),
+                            (metadata["title"], chunk, metadata["source_path"], json.dumps(metadata)),
                         )
                 
             conn.commit()
