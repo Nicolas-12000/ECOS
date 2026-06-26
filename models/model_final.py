@@ -11,6 +11,7 @@ from pathlib import Path
 
 import joblib
 import pandas as pd
+import numpy as np
 
 MODELS_ROOT = Path(__file__).resolve().parent
 if str(MODELS_ROOT) not in sys.path:
@@ -187,7 +188,7 @@ def main() -> int:
 
     if prophet_models:
         prophet_yhat_test = test_df["prophet_yhat"].fillna(0).to_numpy()
-        y_pred_total = prophet_yhat_test + y_pred
+        y_pred_total = np.clip(prophet_yhat_test + y_pred, 0, None)
         y_true_total = test_df["cases_total"].to_numpy()
         final_metrics = evaluate_metrics(y_true_total, y_pred_total, args.outbreak_threshold)
     else:

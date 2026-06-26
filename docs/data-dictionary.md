@@ -20,7 +20,19 @@ Este documento describe con detalle la estructura de datos que resulta de la fas
 | **temp_min_c** | `FLOAT` | Clima IDEAM | Temperatura mínima histórica en Celsius. |
 | **temp_max_c** | `FLOAT` | Clima IDEAM | Temperatura máxima histórica en Celsius. |
 | **precipitation_mm**| `FLOAT` | Clima IDEAM | Milímetros cúbicos promedio de lluvia/precipitación. |
-| **vaccination_coverage_pct** | `FLOAT` | Minsalud | Cobertura anual reportada a nivel departamental, en porcentaje (0-100%). |
+| **vaccination_coverage_pct** | `FLOAT` | Minsalud | Cobertura anual de vacunación reportada a nivel departamental, en porcentaje (0-100%). |
+| **temp_avg_c_actual** | `FLOAT` | OpenMeteo / IDEAM | Temperatura promedio real medida en Celsius para la semana epidemiológica específica. |
+| **temp_min_c_actual** | `FLOAT` | OpenMeteo / IDEAM | Temperatura mínima real en Celsius para la semana. |
+| **temp_max_c_actual** | `FLOAT` | OpenMeteo / IDEAM | Temperatura máxima real en Celsius para la semana. |
+| **precipitation_mm_actual** | `FLOAT` | OpenMeteo / IDEAM | Precipitación real acumulada en milímetros para la semana. |
+| **rips_visits_total** | `FLOAT` | RIPS (MinSalud) | Número total de consultas médicas registradas para sintomatología asociada en el municipio. |
+| **mobility_in** | `FLOAT` | Flujos Terrestres | Volumen total estimado de pasajeros ingresando al municipio. |
+| **mobility_out** | `FLOAT` | Flujos Terrestres | Volumen total estimado de pasajeros saliendo del municipio. |
+| **mobility_index** | `FLOAT` | Modelos de Movilidad | Índice normalizado de movilidad humana general en la zona. |
+| **trends_score** | `FLOAT` | Google Trends | Puntuación de volumen de búsquedas de términos relacionados en Google para el departamento. |
+| **rss_mentions** | `FLOAT` | Medios RSS | Cantidad de menciones o artículos de noticias locales sobre brotes en medios regionales. |
+| **signals_score** | `FLOAT` | Alertas ECOS | Puntaje consolidado de señales de alerta temprana basadas en exógenas. |
+
 
 ## Transformaciones Base (Full HD - Nativo)
 

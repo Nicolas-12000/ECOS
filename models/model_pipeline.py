@@ -198,12 +198,9 @@ def walk_forward_validation(
         X_train, X_test = align_columns(X_train, X_test)
         model = train_model(X_train, y_train)
         y_pred = model.predict(X_test)
-
         if use_prophet:
-            # Reconstruir predicción total: prophet_yhat + residual_pred
-            # y_test aquí es el residuo real, pero las métricas deben evaluarse contra los casos reales.
             prophet_yhat_test = test_df_feat["prophet_yhat"].fillna(0).to_numpy()
-            y_pred_total = prophet_yhat_test + y_pred
+            y_pred_total = np.clip(prophet_yhat_test + y_pred, 0, None)
             y_true_total = test_df_feat["cases_total"].to_numpy()
             m = evaluate_metrics(y_true_total, y_pred_total, threshold)
         else:
