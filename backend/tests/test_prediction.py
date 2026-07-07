@@ -5,29 +5,29 @@ import pandas as pd
 from app.services import prediction
 
 
-class _FakeBooster:
-    feature_names = [
-        "epi_year",
-        "epi_week",
-        "cases_lag_1",
-        "cases_lag_2",
-        "cases_lag_4",
-        "temp_avg_c",
-        "temp_min_c",
-        "temp_max_c",
-        "precipitation_mm",
-        "vaccination_coverage_pct",
-        "rips_visits_total",
-        "mobility_index",
-    ]
-
-
 class _FakeModel:
-    def get_booster(self):
-        return _FakeBooster()
+    def __init__(self):
+        self.feature_columns = [
+            "epi_year",
+            "epi_week",
+            "cases_lag_1",
+            "cases_lag_2",
+            "cases_lag_4",
+            "temp_avg_c",
+            "temp_min_c",
+            "temp_max_c",
+            "precipitation_mm",
+            "vaccination_coverage_pct",
+            "rips_visits_total",
+            "mobility_index",
+        ]
 
-    def predict(self, frame):
-        return [float(frame.iloc[0]["cases_lag_1"]) + 10.0]
+    def predict_residual(self, X):
+        lag_1 = float(X.iloc[0]["cases_lag_1"])
+        return lag_1 + 10.0, {"cases_lag_1": 1.0}
+
+    def get_prophet_baseline(self, municipio_code, disease, ds):
+        return 0.0
 
 
 def test_predict_cases_is_recursive(monkeypatch):
@@ -55,7 +55,7 @@ def test_predict_cases_is_recursive(monkeypatch):
         }
     )
 
-    monkeypatch.setattr(prediction, "load_model", lambda: _FakeModel())
+    monkeypatch.setattr(prediction, "load_hybrid_model", lambda: _FakeModel())
     monkeypatch.setattr(prediction, "get_history", lambda municipio_code, disease, limit=10: history.copy())
     monkeypatch.setattr(prediction, "get_last_known_features", lambda municipio_code, disease: last_row.copy())
 

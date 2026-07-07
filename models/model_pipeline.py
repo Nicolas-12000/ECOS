@@ -97,10 +97,76 @@ def train_model(X_train: pd.DataFrame, y_train: pd.Series) -> XGBRegressor:
     return model
 
 
+def fit_prophet_series(df_series: pd.DataFrame):
+    from prophet import Prophet
+
+    model = Prophet(
+        yearly_seasonality=True,
+        weekly_seasonality=True,
+        daily_seasonality=False,
+        interval_width=0.9,
+    )
+    model.fit(df_series)
+    return model
+
+
+def build_prophet_models(df: pd.DataFrame, min_weeks: int, max_series: int) -> dict:
+    prophet_models: dict[str, object] = {}
+    groups = (
+        df.groupby(["municipio_code", "disease"], dropna=True)
+        .size()
+        .sort_values(ascending=False)
+    )
+
+    for (municipio_code, disease), count in groups.items():
+        if count < min_weeks:
+            continue
+        key = f"{municipio_code}:{disease}"
+        if len(prophet_models) >= max_series:
+            break
+
+        subset = df[(df["municipio_code"] == municipio_code) & (df["disease"] == disease)].copy()
+        subset = subset.sort_values("week_start_date")
+        series = subset[["week_start_date", "cases_total"]].rename(
+            columns={"week_start_date": "ds", "cases_total": "y"}
+        )
+        try:
+            prophet_models[key] = fit_prophet_series(series)
+        except Exception:
+            continue
+
+    return prophet_models
+
+
+def apply_prophet_residuals(df: pd.DataFrame, prophet_models: dict) -> pd.DataFrame:
+    df = df.copy()
+    df["prophet_yhat"] = pd.NA
+
+    for key, model in prophet_models.items():
+        municipio_code, disease = key.split(":", 1)
+        subset_idx = df.index[(df["municipio_code"] == municipio_code) & (df["disease"] == disease)]
+        if subset_idx.empty:
+            continue
+        subset = df.loc[subset_idx].sort_values("week_start_date")
+        frame = subset[["week_start_date"]].rename(columns={"week_start_date": "ds"})
+        try:
+            forecast = model.predict(frame)
+        except Exception:
+            continue
+        df.loc[subset_idx, "prophet_yhat"] = forecast["yhat"].to_numpy()
+
+    df["prophet_yhat"] = pd.to_numeric(df["prophet_yhat"], errors="coerce")
+    df["residual"] = df["cases_total"] - df["prophet_yhat"].fillna(0)
+    return df
+
+
 def walk_forward_validation(
     df: pd.DataFrame,
     splits: list[tuple[pd.Timestamp, pd.Timestamp]],
     threshold: float,
+    use_prophet: bool = False,
+    prophet_min_weeks: int = 104,
+    prophet_max_series: int = 2000,
 ) -> list[dict]:
     fold_metrics = []
     for i, (train_end, test_end) in enumerate(splits):
@@ -110,13 +176,36 @@ def walk_forward_validation(
             print(f"[skip] fold {i+1}: insufficient data")
             continue
 
-        X_train, y_train = build_features(train_df)
-        X_test, y_test = build_features(test_df)
-        X_train, X_test = align_columns(X_train, X_test)
+        if use_prophet:
+            try:
+                # Entrenar Prophet SOLO con train_df
+                prophet_models = build_prophet_models(train_df, prophet_min_weeks, prophet_max_series)
+                # Calcular residuos para train_df y test_df
+                train_df_feat = apply_prophet_residuals(train_df, prophet_models)
+                test_df_feat = apply_prophet_residuals(test_df, prophet_models)
+                
+                X_train, y_train = build_features_with_target(train_df_feat, target_col="residual")
+                X_test, y_test = build_features_with_target(test_df_feat, target_col="residual")
+            except Exception as e:
+                print(f"[warn] fold {i+1}: Fallo al construir/aplicar Prophet ({e}). Usando cases_total.")
+                X_train, y_train = build_features(train_df)
+                X_test, y_test = build_features(test_df)
+                use_prophet = False
+        else:
+            X_train, y_train = build_features(train_df)
+            X_test, y_test = build_features(test_df)
 
+        X_train, X_test = align_columns(X_train, X_test)
         model = train_model(X_train, y_train)
         y_pred = model.predict(X_test)
-        m = evaluate_metrics(y_test.to_numpy(), y_pred, threshold)
+        if use_prophet:
+            prophet_yhat_test = test_df_feat["prophet_yhat"].fillna(0).to_numpy()
+            y_pred_total = np.clip(prophet_yhat_test + y_pred, 0, None)
+            y_true_total = test_df_feat["cases_total"].to_numpy()
+            m = evaluate_metrics(y_true_total, y_pred_total, threshold)
+        else:
+            m = evaluate_metrics(y_test.to_numpy(), y_pred, threshold)
+
         m["fold"] = i + 1
         m["train_end"] = str(train_end.date())
         m["test_end"] = str(test_end.date())
