@@ -58,6 +58,17 @@ def test_predict_cases_is_recursive(monkeypatch):
     monkeypatch.setattr(prediction, "load_hybrid_model", lambda: _FakeModel())
     monkeypatch.setattr(prediction, "get_history", lambda municipio_code, disease, limit=10: history.copy())
     monkeypatch.setattr(prediction, "get_last_known_features", lambda municipio_code, disease: last_row.copy())
+    monkeypatch.setattr(
+        prediction,
+        "calculate_endemic_channel",
+        lambda municipio_code, disease, epi_week, years_window=5, years_excluded=None: {
+            "p25": 0.0,
+            "p50": 5.0,
+            "p75": 10.0,
+            "p90": 15.0,
+            "n": 5,
+        },
+    )
 
     results = prediction.predict_cases("05001", "dengue", weeks_ahead=2)
 
