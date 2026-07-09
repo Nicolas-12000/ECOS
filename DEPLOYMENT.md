@@ -24,9 +24,9 @@ Frontend (Vercel) → Backend RAG (Render) → Base de datos (Supabase/PostgreSQ
    - **Environment**: `Python`
    - **Region**: `Oregon` (o tu región preferida)
    - **Branch**: `main`
-   - **Build Command**: `pip install -r requirements-prod.txt`
-   - **Start Command**: `uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT`
-   - **Root Directory**: `.` (punto)
+   - **Build Command**: `pip install -r ../requirements-prod.txt`
+   - **Start Command**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+   - **Root Directory**: `./backend`
 
 4. **Configurar Variables de Entorno** en Render Dashboard:
 
