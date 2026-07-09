@@ -23,12 +23,22 @@ class Settings(BaseSettings):
     # OpenWeather (opcional — solo si quieres datos de clima actual)
     openweather_api_key: str = ""
 
-    # CORS
+    # CORS - parse from comma-separated string or use defaults
     cors_origins: list[str] = [
         "http://localhost:3000",
         "http://localhost:3001",
         "http://127.0.0.1:3000",
     ]
+    
+    @property
+    def resolved_cors_origins(self) -> list[str]:
+        """Parse CORS origins from environment variable or use defaults."""
+        import os
+        cors_env = os.getenv("CORS_ORIGINS", "")
+        if cors_env:
+            # Split by comma and strip whitespace
+            return [origin.strip() for origin in cors_env.split(",") if origin.strip()]
+        return self.cors_origins
 
     model_config = SettingsConfigDict(env_file=str(REPO_ROOT / ".env"), env_file_encoding="utf-8")
 

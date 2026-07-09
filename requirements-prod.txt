@@ -1,0 +1,27 @@
+# Dependencias optimizadas para producción - Solo RAG
+fastapi[standard]>=0.115.0
+uvicorn>=0.30.6
+pydantic>=2.8.2
+pydantic-settings>=2.4.0
+python-dotenv>=1.0.1
+httpx>=0.27.0
+
+# Procesamiento de datos (necesario para RAG)
+pandas>=2.0.0
+numpy>=2.0.0
+
+# Base de datos (opcional - solo si se usa Supabase/PostgreSQL)
+psycopg[binary]>=3.2.1
+
+# Embeddings (opcional - para búsqueda semántica)
+sentence-transformers>=3.0.0
+
+# ML (opcional - para predicciones)
+scikit-learn>=1.5.2
+xgboost>=2.1.1
+joblib>=1.4.2
+prophet>=1.1.5
+shap>=0.45.0
+
+# Report generation (necesario para endpoint /report)
+fpdf2>=2.8.0
