@@ -1,11 +1,11 @@
-# Render configuration for ECOS Backend (RAG only)
+# Render configuration for ECOS Backend (RAG only - OPTIMIZED for 512MB RAM)
 services:
   - type: web
     name: ecos-backend-rag
     env: python
     region: oregon  # or your preferred region
     pythonVersion: 3.12.10
-    buildCommand: pip install -r ../requirements-prod.txt
+    buildCommand: pip install -r ../requirements-prod-minimal.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     rootDir: ./backend
     envVars:

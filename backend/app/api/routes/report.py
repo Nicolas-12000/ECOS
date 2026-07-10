@@ -3,7 +3,14 @@ import io
 from fastapi import APIRouter, Query, HTTPException, Response
 from fpdf import FPDF
 from app.services.epidemiology import get_history, VALID_DISEASES
-from app.services.prediction import predict_cases
+
+# Importación opcional de predict_cases (evita cargar dependencias pesadas de ML)
+try:
+    from app.services.prediction import predict_cases
+    PREDICT_AVAILABLE = True
+except Exception:
+    PREDICT_AVAILABLE = False
+    predict_cases = None
 
 router = APIRouter()
 

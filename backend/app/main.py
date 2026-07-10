@@ -1,11 +1,16 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.router import api_router
 from app.core.config import settings
 from app.core.logging import setup_logging
 
 setup_logging(settings.debug)
+
+# Importa el router correspondiente según el entorno
+if settings.env == "production":
+    from app.api.router_prod import api_router
+else:
+    from app.api.router import api_router
 
 app = FastAPI(
     title="ECOS API",

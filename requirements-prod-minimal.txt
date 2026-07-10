@@ -1,0 +1,19 @@
+# Dependencias MÍNIMAS para producción - Solo RAG (sin ML pesado)
+# Optimizado para Render Free Plan (512MB RAM)
+
+fastapi[standard]>=0.115.0
+uvicorn>=0.30.6
+pydantic>=2.8.2
+pydantic-settings>=2.4.0
+python-dotenv>=1.0.1
+httpx>=0.27.0
+
+# Procesamiento de datos (necesario para RAG)
+pandas>=2.0.0
+numpy>=2.0.0
+
+# Base de datos (necesaria para RAG)
+psycopg[binary]>=3.2.1
+
+# Report generation (necesario para endpoint /report)
+fpdf2>=2.8.0

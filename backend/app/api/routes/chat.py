@@ -6,9 +6,16 @@ from fastapi import APIRouter, HTTPException
 
 from app.schemas.epidemiology import ChatRequest, ChatResponse, ChatSource
 from app.services.epidemiology import VALID_DISEASES, get_history, get_last_known_features
-from app.services.prediction import predict_cases
 from app.services import rag
 from app.core.db import get_db_connection
+
+# Importación opcional de predict_cases (evita cargar dependencias pesadas de ML)
+try:
+    from app.services.prediction import predict_cases
+    PREDICT_AVAILABLE = True
+except Exception:
+    PREDICT_AVAILABLE = False
+    predict_cases = None
 
 try:
     from app.services.semantic import available as semantic_available, search as semantic_search
