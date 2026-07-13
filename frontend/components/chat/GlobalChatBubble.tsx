@@ -11,7 +11,7 @@ interface ChatMessage { role: "user" | "assistant"; content: string; sources?: C
 const QUICK_ACTIONS = [
   "¿Riesgo de dengue en Nariño?",
   "Brotes en el Pacífico",
-  "Malaria 2024 vs 2023",
+  "Malaria 2022 vs 2020",
   "¿Movilidad y riesgo?",
 ]
 
@@ -89,11 +89,10 @@ export function GlobalChatBubble() {
 
       {/* ── Chat Window ── */}
       <div
-        className={`fixed bottom-6 right-6 z-9999 w-100 max-w-[calc(100vw-2rem)] h-140 max-h-[calc(100vh-6rem)] flex flex-col rounded-2xl overflow-hidden transition-all duration-300 origin-bottom-right ${
-          isOpen
+        className={`fixed bottom-6 right-6 z-9999 w-100 max-w-[calc(100vw-2rem)] h-140 max-h-[calc(100vh-6rem)] flex flex-col rounded-2xl overflow-hidden transition-all duration-300 origin-bottom-right ${isOpen
             ? "scale-100 opacity-100"
             : "scale-95 opacity-0 pointer-events-none"
-        }`}
+          }`}
         style={{
           backgroundColor: "#FFFFFF",
           border: "1px solid #E5E2DC",
