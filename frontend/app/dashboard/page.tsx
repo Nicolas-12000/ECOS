@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react"
 import useSWR from "swr"
 import { Badge } from "@/components/ui/Badge"
-import { BarChart3, Map as MapIcon, Monitor } from "lucide-react"
+import { BarChart3, Map as MapIcon, Monitor, Info, X } from "lucide-react"
 import { LottieLoader } from "@/components/ui/LottieLoader"
 import { fetcher } from "@/lib/api"
 import DeckGL from "@deck.gl/react"
@@ -37,12 +37,16 @@ const DASHBOARDS = [
 ]
 
 const MUNICIPIOS = [
-  { code: "11001", name: "Bogotá D.C." },
-  { code: "05001", name: "Medellín" },
-  { code: "76001", name: "Cali" },
-  { code: "08001", name: "Barranquilla" },
-  { code: "13001", name: "Cartagena" },
-  { code: "54001", name: "Cúcuta" },
+  { code: "86865", name: "Puerto Asís" },
+  { code: "05500", name: "Medellín" },
+  { code: "70708", name: "Toluviejo" },
+  { code: "05579", name: "Puerto Triunfo" },
+  { code: "68686", name: "San Gil" },
+  { code: "25258", name: "Tocaima" },
+  { code: "76760", name: "Cali" },
+  { code: "11110", name: "Bogotá D.C." },
+  { code: "13130", name: "Cartagena" },
+  { code: "54540", name: "Cúcuta" },
 ]
 
 interface MobilityODItem {
@@ -97,10 +101,70 @@ function buildLinePath(series: number[], width: number, height: number, padding:
     .join(" ")
 }
 
+const DEPTO_NAMES: Record<string, string> = {
+  "05": "Antioquia",
+  "08": "Atlántico",
+  "11": "Bogotá D.C.",
+  "13": "Bolívar",
+  "15": "Boyacá",
+  "17": "Caldas",
+  "18": "Caquetá",
+  "19": "Cauca",
+  "20": "Cesar",
+  "23": "Córdoba",
+  "25": "Cundinamarca",
+  "27": "Chocó",
+  "41": "Huila",
+  "44": "La Guajira",
+  "47": "Magdalena",
+  "50": "Meta",
+  "52": "Nariño",
+  "54": "Norte de Santander",
+  "63": "Quindío",
+  "66": "Risaralda",
+  "68": "Santander",
+  "70": "Sucre",
+  "73": "Tolima",
+  "76": "Valle del Cauca",
+  "81": "Arauca",
+  "85": "Casanare",
+  "86": "Putumayo",
+  "88": "San Andrés",
+  "91": "Amazonas",
+  "94": "Guainía",
+  "95": "Guaviare",
+  "97": "Vaupés",
+  "99": "Vichada"
+}
+
+// Municipio representativo por departamento (primer código disponible en MUNICIPIOS)
+const DEPTO_TO_MUNICIPIO: Record<string, string> = {
+  "86": "86865", // Putumayo → Puerto Asís
+  "05": "05500", // Antioquia → Medellín
+  "70": "70708", // Sucre → Toluviejo
+  "68": "68686", // Santander → San Gil
+  "25": "25258", // Cundinamarca → Tocaima
+  "76": "76760", // Valle del Cauca → Cali
+  "11": "11110", // Bogotá D.C. → Bogotá
+  "13": "13130", // Bolívar → Cartagena
+  "54": "54540", // Norte de Santander → Cúcuta
+}
+
+const TIME_RANGES = [
+  { label: "4 semanas", weeks: 4 },
+  { label: "13 semanas (3 meses)", weeks: 13 },
+  { label: "26 semanas (6 meses)", weeks: 26 },
+  { label: "52 semanas (1 año)", weeks: 52 },
+  { label: "Todo el historial", weeks: null },
+]
+
 function MobilityDashboard() {
   const [municipioCode, setMunicipioCode] = useState(MUNICIPIOS[0].code)
+  const [weeksLimit, setWeeksLimit] = useState<number | null>(52)
+  const [selectedDepto, setSelectedDepto] = useState<string | null>(null)
+
   const { data, error, isLoading } = useSWR<MobilityODResponse>(
-    `/api/v3/mobility/od?municipio_code=${municipioCode}&limit=52`,
+    `/api/v3/mobility/od?municipio_code=${municipioCode}${weeksLimit !== null ? `&limit=${weeksLimit}` : ""}`,
     fetcher,
   )
   const { data: arcData, error: arcError, isLoading: arcLoading } = useSWR<MobilityArcResponse>(
@@ -108,25 +172,42 @@ function MobilityDashboard() {
     fetcher,
   )
 
-  const series = useMemo(() => {
+  const allSeries = useMemo(() => {
     const records = data?.records ? [...data.records] : []
-    return records
-      .sort((a, b) => (a.epi_year - b.epi_year) || (a.epi_week - b.epi_week))
+    return records.sort((a, b) => (a.epi_year - b.epi_year) || (a.epi_week - b.epi_week))
   }, [data])
+
+  // Apply time window (null = all data)
+  const series = useMemo(
+    () => weeksLimit !== null ? allSeries.slice(-weeksLimit) : allSeries,
+    [allSeries, weeksLimit]
+  )
 
   const mobilityIn = series.map(r => r.mobility_in)
   const mobilityOut = series.map(r => r.mobility_out)
   const latest = series[series.length - 1]
-  const previous = series[series.length - 2]
-  const deltaIn = latest && previous ? latest.mobility_in - previous.mobility_in : 0
-  const deltaOut = latest && previous ? latest.mobility_out - previous.mobility_out : 0
+  const firstRecord = series[0]
+
+  // Totals for the selected period
+  const totalIn = series.reduce((s, r) => s + r.mobility_in, 0)
+  const totalOut = series.reduce((s, r) => s + r.mobility_out, 0)
 
   const width = 640
   const height = 220
   const padding = 28
   const inPath = buildLinePath(mobilityIn, width, height, padding)
   const outPath = buildLinePath(mobilityOut, width, height, padding)
-  const arcs = useMemo(() => arcData?.arcs ?? [], [arcData])
+
+  const allArcs = useMemo(() => arcData?.arcs ?? [], [arcData])
+
+  // Filter arcs by selected department
+  const arcs = useMemo(() => {
+    if (!selectedDepto) return allArcs
+    return allArcs.filter(
+      a => a.origin_code === selectedDepto || a.dest_code === selectedDepto
+    )
+  }, [allArcs, selectedDepto])
+
   const maxPassengers = useMemo(
     () => arcs.reduce((max, arc) => Math.max(max, arc.passengers), 1),
     [arcs]
@@ -138,144 +219,267 @@ function MobilityDashboard() {
     getSourcePosition: (d: MobilityArcItem) => [d.origin_lon, d.origin_lat],
     getTargetPosition: (d: MobilityArcItem) => [d.dest_lon, d.dest_lat],
     getWidth: (d: MobilityArcItem) => Math.max(1, (d.passengers / maxPassengers) * 6),
-    getSourceColor: [220, 38, 38, 180],
-    getTargetColor: [14, 116, 144, 180],
+    getSourceColor: (d: MobilityArcItem) =>
+      selectedDepto && d.origin_code === selectedDepto ? [220, 38, 38, 220] : [220, 38, 38, 160],
+    getTargetColor: (d: MobilityArcItem) =>
+      selectedDepto && d.dest_code === selectedDepto ? [14, 116, 144, 220] : [14, 116, 144, 160],
     pickable: true,
     autoHighlight: true,
-  }), [arcs, maxPassengers])
+    onClick: ({ object }: { object?: MobilityArcItem }) => {
+      if (!object) return
+      const clickedDepto = object.origin_code
+      // Toggle map filter
+      setSelectedDepto(prev => prev === clickedDepto ? null : clickedDepto)
+      // Sync el panel de stats con el municipio de ese departamento
+      const matchingMunicipio = DEPTO_TO_MUNICIPIO[clickedDepto]
+      if (matchingMunicipio) setMunicipioCode(matchingMunicipio)
+    },
+  }), [arcs, maxPassengers, selectedDepto])
+
+  const historyWeeks = weeksLimit === null ? 12 : weeksLimit <= 13 ? weeksLimit : 8
 
   return (
-    <div className="p-6 lg:p-8 space-y-6">
-      <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+    <div className="p-4 lg:p-6 space-y-4">
+      {/* Header & Controls */}
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 border-b border-(--color-border) pb-4">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-(--color-muted) font-semibold">Movilidad intermunicipal</p>
-          <h2 className="text-2xl font-bold text-(--color-primary)">Flujos de entrada y salida (últimas 52 semanas)</h2>
-          <p className="text-sm text-(--color-secondary) mt-2 max-w-2xl">
-            Usa el código DANE para explorar el historial de movilidad que alimenta el mapa de riesgo.
+          <p className="text-xs uppercase tracking-[0.2em] text-(--color-muted) font-semibold">Movilidad intermunicipal · SIVIGILA</p>
+          <h2 className="text-xl font-bold text-(--color-primary)">Flujos de Viajeros entre Municipios</h2>
+          <p className="text-xs text-(--color-secondary) mt-0.5">
+            Registro histórico semanal — datos disponibles hasta
+            {latest ? <strong className="text-(--color-primary)"> Sem. {latest.epi_week} / {latest.epi_year}</strong> : " sin datos"}
           </p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-          <label className="text-xs font-semibold uppercase tracking-[0.2em] text-(--color-muted)">Municipio</label>
-          <select
-            value={municipioCode}
-            onChange={(e) => setMunicipioCode(e.target.value)}
-            className="bg-(--color-background) border border-(--color-border) rounded-md px-3 py-2 text-sm text-(--color-primary)"
-          >
-            {MUNICIPIOS.map((m) => (
-              <option key={m.code} value={m.code}>
-                {m.name} · {m.code}
-              </option>
+        {/* Controls row */}
+        <div className="flex flex-wrap gap-2 sm:justify-end">
+          {/* Time range selector */}
+          <div className="flex items-center gap-1 bg-(--color-surface) border border-(--color-border) rounded-md px-2 py-1 shadow-sm">
+            {TIME_RANGES.map(tr => (
+              <button
+                key={tr.weeks}
+                onClick={() => setWeeksLimit(tr.weeks)}
+                className={`px-2 py-0.5 text-[10px] font-semibold rounded transition-all ${
+                  weeksLimit === tr.weeks
+                    ? "bg-[var(--color-tertiary)] text-white"
+                    : "text-(--color-secondary) hover:text-(--color-primary)"
+                }`}
+              >
+                {tr.label.split(" ")[0]}
+              </button>
             ))}
-          </select>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-(--color-background) border border-(--color-border) rounded-md p-4">
-          <p className="text-[10px] uppercase tracking-wider text-(--color-muted) font-semibold">Última semana</p>
-          <p className="text-sm font-bold text-(--color-primary) mt-2">
-            {latest ? `S${latest.epi_week} · ${latest.epi_year}` : "Sin datos"}
-          </p>
-          <p className="text-xs text-(--color-muted) mt-1">Registro más reciente cargado</p>
-        </div>
-        <div className="bg-(--color-background) border border-(--color-border) rounded-md p-4">
-          <p className="text-[10px] uppercase tracking-wider text-(--color-muted) font-semibold">Movilidad entrante</p>
-          <p className="text-sm font-bold text-(--color-primary) mt-2">
-            {latest ? formatNumber(latest.mobility_in) : "—"}
-          </p>
-          <p className="text-xs text-(--color-muted) mt-1">
-            {latest && previous ? `${deltaIn >= 0 ? "+" : ""}${formatNumber(deltaIn)} vs. semana anterior` : "Comparativo no disponible"}
-          </p>
-        </div>
-        <div className="bg-(--color-background) border border-(--color-border) rounded-md p-4">
-          <p className="text-[10px] uppercase tracking-wider text-(--color-muted) font-semibold">Movilidad saliente</p>
-          <p className="text-sm font-bold text-(--color-primary) mt-2">
-            {latest ? formatNumber(latest.mobility_out) : "—"}
-          </p>
-          <p className="text-xs text-(--color-muted) mt-1">
-            {latest && previous ? `${deltaOut >= 0 ? "+" : ""}${formatNumber(deltaOut)} vs. semana anterior` : "Comparativo no disponible"}
-          </p>
-        </div>
-      </div>
-
-      <div className="bg-(--color-background) border border-(--color-border) rounded-md p-4">
-        <p className="text-xs uppercase tracking-[0.2em] text-(--color-muted) font-semibold mb-3">Mapa OD por departamento</p>
-        {arcLoading ? (
-          <div className="min-h-90 flex items-center justify-center">
-            <LottieLoader variant="loading" message="Cargando mapa de movilidad..." />
+      {/* Department list filter */}
+      <div className="bg-(--color-background) border border-(--color-border) rounded-md p-3">
+        <div className="flex items-center justify-between mb-2.5">
+          <div className="flex items-center gap-1.5">
+            <Info size={12} className="text-(--color-muted)" />
+            <span className="text-[10px] uppercase tracking-wider font-semibold text-(--color-muted)">
+              Filtrar por departamento — clic para sincronizar mapa y estadísticas
+            </span>
           </div>
-        ) : arcError || arcs.length === 0 ? (
-          <div className="min-h-90 flex flex-col items-center justify-center gap-2 text-sm text-(--color-secondary)">
-            <Badge variant="outline">Sin datos</Badge>
-            <p>No hay flujos OD disponibles para el mapa.</p>
-          </div>
-        ) : (
-          <div className="h-105 rounded-md overflow-hidden border border-(--color-border)">
-            <DeckGL
-              initialViewState={INITIAL_VIEW_STATE}
-              controller
-              layers={[arcLayer]}
-              getTooltip={({ object }: { object?: MobilityArcItem }) => (
-                object ? `${object.origin_code} → ${object.dest_code} · ${formatNumber(object.passengers)}` : null
-              )}
+          {selectedDepto && (
+            <button
+              onClick={() => setSelectedDepto(null)}
+              className="flex items-center gap-1 text-[10px] text-(--color-tertiary) font-semibold hover:opacity-75 transition-opacity"
             >
-              <Map reuseMaps mapStyle={MAP_STYLE} />
-            </DeckGL>
-          </div>
-        )}
+              <X size={10} />
+              Quitar filtro
+            </button>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {Object.entries(DEPTO_NAMES).map(([code, name]) => {
+            const isActive = selectedDepto === code
+            const hasMunicipio = code in DEPTO_TO_MUNICIPIO
+            return (
+              <button
+                key={code}
+                onClick={() => {
+                  if (isActive) {
+                    setSelectedDepto(null)
+                  } else {
+                    setSelectedDepto(code)
+                    const matchingMunicipio = DEPTO_TO_MUNICIPIO[code]
+                    if (matchingMunicipio) setMunicipioCode(matchingMunicipio)
+                  }
+                }}
+                className={`px-2.5 py-1 rounded-full text-[10px] font-semibold border transition-all ${
+                  isActive
+                    ? "bg-[var(--color-tertiary)] text-white border-[var(--color-tertiary)] shadow-sm"
+                    : hasMunicipio
+                    ? "border-(--color-border) text-(--color-secondary) hover:border-[var(--color-tertiary)] hover:text-(--color-primary) bg-(--color-surface)"
+                    : "border-(--color-border) text-(--color-muted) bg-(--color-surface) opacity-60 cursor-pointer"
+                }`}
+              >
+                {name}
+              </button>
+            )
+          })}
+        </div>
       </div>
 
-      <div className="bg-(--color-background) border border-(--color-border) rounded-md p-4">
-        {isLoading ? (
-          <div className="min-h-55 flex items-center justify-center">
-            <LottieLoader variant="loading" message="Cargando series de movilidad..." />
-          </div>
-        ) : error ? (
-          <div className="min-h-50 flex flex-col items-center justify-center gap-2 text-sm text-(--color-secondary)">
-            <Badge variant="outline">Sin datos</Badge>
-            <p>No hay registros de movilidad para este municipio. Verifica el código DANE.</p>
-          </div>
-        ) : (
-          <div className="w-full overflow-x-auto">
-            <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-60">
-              <defs>
-                <linearGradient id="mobilityIn" x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%" stopColor="#16A34A" stopOpacity="0.25" />
-                  <stop offset="100%" stopColor="#16A34A" stopOpacity="0" />
-                </linearGradient>
-                <linearGradient id="mobilityOut" x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%" stopColor="#F97316" stopOpacity="0.2" />
-                  <stop offset="100%" stopColor="#F97316" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              <rect x="0" y="0" width={width} height={height} fill="transparent" />
-              <path d={inPath} fill="none" stroke="#16A34A" strokeWidth="2" />
-              <path d={outPath} fill="none" stroke="#F97316" strokeWidth="2" />
-            </svg>
-            <div className="flex flex-wrap gap-4 text-xs text-(--color-muted) mt-3">
-              <span className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#16A34A]" />
-                Entrante
-              </span>
-              <span className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#F97316]" />
-                Saliente
-              </span>
+      {/* Main Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        {/* Left Column: Map OD */}
+        <div className="lg:col-span-7 flex flex-col">
+          <div className="bg-(--color-background) border border-(--color-border) rounded-md p-4 flex flex-col h-full min-h-[500px] lg:min-h-[580px]">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs uppercase tracking-[0.2em] text-(--color-muted) font-semibold">
+                Mapa de Viajes Interdepartamentales
+              </p>
+              <Badge variant="outline" className="text-[10px]">Total histórico acumulado</Badge>
             </div>
+            {arcLoading ? (
+              <div className="flex-1 flex items-center justify-center">
+                <LottieLoader variant="loading" message="Cargando mapa de movilidad..." />
+              </div>
+            ) : arcError || allArcs.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center gap-2 text-sm text-(--color-secondary)">
+                <Badge variant="outline">Sin datos</Badge>
+                <p>No hay flujos de transporte disponibles para el mapa.</p>
+              </div>
+            ) : (
+              <div className="relative flex-1 w-full rounded-md overflow-hidden border border-(--color-border) min-h-[400px]">
+                <DeckGL
+                  initialViewState={INITIAL_VIEW_STATE}
+                  controller
+                  layers={[arcLayer]}
+                  getTooltip={({ object }: { object?: MobilityArcItem }) => {
+                    if (!object) return null
+                    const fromDepto = DEPTO_NAMES[object.origin_code] || `Dpto. ${object.origin_code}`
+                    const toDepto = DEPTO_NAMES[object.dest_code] || `Dpto. ${object.dest_code}`
+                    return {
+                      html: `<b>${fromDepto} → ${toDepto}</b><br/>${formatNumber(object.passengers)} pasajeros registrados en total<br/><i style="font-size:10px;color:#888">Clic para sincronizar todos los paneles con este departamento</i>`,
+                      style: { fontSize: "12px", padding: "8px 10px", borderRadius: "6px" }
+                    }
+                  }}
+                >
+                  <Map reuseMaps mapStyle={MAP_STYLE} />
+                </DeckGL>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </div>
 
-      <div className="bg-(--color-background) border border-(--color-border) rounded-md p-4">
-        <p className="text-xs uppercase tracking-[0.2em] text-(--color-muted) font-semibold mb-3">Últimas 8 semanas</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {series.slice(-8).map((row) => (
-            <div key={`${row.epi_year}-${row.epi_week}`} className="border border-(--color-border) rounded-md p-3">
-              <p className="text-[10px] uppercase tracking-wider text-(--color-muted)">S{row.epi_week} · {row.epi_year}</p>
-              <p className="text-sm font-semibold text-(--color-primary) mt-2">{formatNumber(row.mobility_in)} entrante</p>
-              <p className="text-xs text-(--color-muted)">{formatNumber(row.mobility_out)} saliente</p>
+        {/* Right Column: Analytics & Charts */}
+        <div className="lg:col-span-5 flex flex-col space-y-4">
+
+          {/* Period summary KPIs */}
+          <div className="bg-(--color-background) border border-(--color-border) rounded-md p-4">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[9px] uppercase tracking-wider text-(--color-muted) font-semibold">
+                Período visualizado
+              </p>
+              <span className="text-[9px] text-(--color-muted)">
+                {TIME_RANGES.find(t => t.weeks === weeksLimit)?.label}
+              </span>
             </div>
-          ))}
+            {series.length > 0 ? (
+              <div className="bg-(--color-surface) rounded-md px-3 py-2 mb-3 border border-(--color-border) text-center">
+                <p className="text-[9px] text-(--color-muted) mb-0.5">Rango de datos mostrado</p>
+                <p className="text-xs font-bold text-(--color-primary)">
+                  Sem. {firstRecord?.epi_week} / {firstRecord?.epi_year}
+                  <span className="font-normal text-(--color-muted) mx-1.5">→</span>
+                  Sem. {latest?.epi_week} / {latest?.epi_year}
+                </p>
+                {weeksLimit !== null && latest?.epi_year && new Date().getFullYear() - latest.epi_year >= 1 && (
+                  <p className="text-[9px] text-amber-600 mt-1">
+                    Los datos más recientes disponibles son de {latest.epi_year} — no de los últimos {weeksLimit} semanas del calendario actual.
+                  </p>
+                )}
+              </div>
+            ) : null}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="text-center border border-(--color-border) rounded-md p-2">
+                <p className="text-[9px] text-(--color-muted)">Total entraron<br/>(suma del período)</p>
+                <p className="text-xs font-bold text-emerald-600 mt-0.5">
+                  {series.length > 0 ? `${formatNumber(totalIn)} pers.` : "—"}
+                </p>
+              </div>
+              <div className="text-center border border-(--color-border) rounded-md p-2">
+                <p className="text-[9px] text-(--color-muted)">Total salieron<br/>(suma del período)</p>
+                <p className="text-xs font-bold text-orange-600 mt-0.5">
+                  {series.length > 0 ? `${formatNumber(totalOut)} pers.` : "—"}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Timeline Chart */}
+          <div className="bg-(--color-background) border border-(--color-border) rounded-md p-4 flex flex-col min-h-[200px]">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs uppercase tracking-[0.2em] text-(--color-muted) font-semibold">
+                Tendencia semanal de viajeros
+              </p>
+              <span className="text-[9px] text-(--color-muted)">Registros por semana epidemiológica</span>
+            </div>
+            {isLoading ? (
+              <div className="flex-1 flex items-center justify-center">
+                <LottieLoader variant="loading" message="Cargando datos históricos..." />
+              </div>
+            ) : error || series.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center gap-2 text-sm text-(--color-secondary)">
+                <Badge variant="outline">Sin datos</Badge>
+                <p className="text-xs text-center">No hay registros para este municipio en el período.</p>
+              </div>
+            ) : (
+              <div className="w-full flex-1 flex flex-col justify-between">
+                <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-28">
+                  <defs>
+                    <linearGradient id="mobilityIn2" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#16A34A" stopOpacity="0.15" />
+                      <stop offset="100%" stopColor="#16A34A" stopOpacity="0" />
+                    </linearGradient>
+                    <linearGradient id="mobilityOut2" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#F97316" stopOpacity="0.12" />
+                      <stop offset="100%" stopColor="#F97316" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  <rect x="0" y="0" width={width} height={height} fill="transparent" />
+                  <path d={inPath} fill="url(#mobilityIn2)" stroke="#16A34A" strokeWidth="2" />
+                  <path d={outPath} fill="url(#mobilityOut2)" stroke="#F97316" strokeWidth="2" />
+                </svg>
+                <div className="flex gap-5 text-[10px] text-(--color-muted) mt-1 justify-center border-t border-(--color-border) pt-2">
+                  <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#16A34A]" />Viajeros que llegaron esa semana</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#F97316]" />Viajeros que salieron esa semana</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* History table */}
+          <div className="bg-(--color-background) border border-(--color-border) rounded-md p-4 flex-1 flex flex-col">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs uppercase tracking-[0.2em] text-(--color-muted) font-semibold">
+                Detalle por semana
+              </p>
+              <span className="text-[9px] text-(--color-muted)">Últimas {historyWeeks} semanas del período</span>
+            </div>
+            {series.length === 0 ? (
+              <p className="text-xs text-(--color-muted) text-center mt-4">Sin registros para mostrar.</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-2 flex-1">
+                {series.slice(-historyWeeks).map((row) => (
+                  <div key={`${row.epi_year}-${row.epi_week}`} className="bg-(--color-surface) border border-(--color-border) rounded-md p-2 flex flex-col justify-between">
+                    <p className="text-[9px] uppercase tracking-wider text-(--color-muted) font-semibold">
+                      Semana {row.epi_week} · {row.epi_year}
+                    </p>
+                    <div className="mt-1">
+                      <p className="text-[11px] font-bold text-emerald-600 leading-tight">
+                        ↓ {formatNumber(row.mobility_in)} llegaron
+                      </p>
+                      <p className="text-[10px] text-orange-600 leading-tight mt-0.5">
+                        ↑ {formatNumber(row.mobility_out)} salieron
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

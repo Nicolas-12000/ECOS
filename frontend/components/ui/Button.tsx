@@ -11,13 +11,13 @@ const buttonVariants = cva(
         default:
           "bg-(--color-surface) text-(--color-primary) border border-(--color-border-strong) hover:bg-(--color-surface-hover) hover:border-(--color-secondary) shadow-sm",
         primary:
-          "bg-(--color-tertiary) text-white border border-transparent hover:bg-(--color-tertiary-hover) shadow-sm hover:shadow-md",
+          "bg-[var(--color-tertiary)] text-white border border-transparent hover:bg-[var(--color-tertiary-hover)] shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200",
         ghost:
-          "bg-transparent text-(--color-primary) border border-transparent hover:bg-(--color-surface-hover)",
+          "bg-transparent text-[var(--color-primary)] border border-transparent hover:bg-[var(--color-surface-hover)]",
         outline:
-          "bg-transparent text-(--color-primary) border border-(--color-border-strong) hover:border-(--color-secondary) hover:bg-(--color-surface-hover)",
+          "bg-transparent text-[var(--color-primary)] border border-[var(--color-border-strong)] hover:border-[var(--color-tertiary)] hover:text-[var(--color-tertiary)] hover:bg-[var(--color-tertiary-alpha)] hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200",
         danger:
-          "bg-(--color-danger-alpha) text-(--color-danger) border border-(--color-danger) hover:bg-(--color-danger) hover:text-white",
+          "bg-[var(--color-danger-alpha)] text-[var(--color-danger)] border border-[var(--color-danger)] hover:bg-[var(--color-danger)] hover:text-white transition-all duration-200",
       },
       size: {
         default: "h-10 px-4 py-2",

@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Activity, TrendingUp, Newspaper, ShieldAlert, Map, Zap, ArrowRight, Database, CloudSun, Radio, Scale } from "lucide-react"
+import { Activity, TrendingUp, Newspaper, ShieldAlert, Map, Zap, ArrowRight, Database, CloudSun, Radio, Scale, Bug, Dna, Microscope } from "lucide-react"
 import { Button } from "@/components/ui/Button"
 import { Badge } from "@/components/ui/Badge"
 import { LottieLoader } from "@/components/ui/LottieLoader"
@@ -45,10 +45,10 @@ const MODULES = [
 ]
 
 const DISEASES = [
-  { name: "Dengue", emoji: "🦟", color: "bg-(--color-danger-alpha) text-(--color-danger)" },
-  { name: "Malaria", emoji: "🦟", color: "bg-(--color-warning-alpha) text-(--color-warning)" },
-  { name: "Zika", emoji: "🧬", color: "bg-blue-50 text-blue-700" },
-  { name: "Chikungunya", emoji: "🔬", color: "bg-purple-50 text-purple-700" },
+  { name: "Dengue", icon: Bug, color: "bg-(--color-danger-alpha) text-(--color-danger)" },
+  { name: "Malaria", icon: ShieldAlert, color: "bg-(--color-warning-alpha) text-(--color-warning)" },
+  { name: "Zika", icon: Dna, color: "bg-blue-50 text-blue-700" },
+  { name: "Chikungunya", icon: Microscope, color: "bg-purple-50 text-purple-700" },
 ]
 
 const DATA_SOURCES = [
@@ -94,9 +94,9 @@ export default function Home() {
               </p>
 
               <div className="flex flex-col sm:flex-row gap-3 animate-fade-in-up" style={{ animationDelay: "0.3s" }}>
-                <Button variant="primary" shape="md" size="lg" asChild>
+                <Button variant="primary" shape="md" size="lg" asChild className="group">
                   <Link href="/tendencias" className="gap-2">
-                    Explorar Tendencias <ArrowRight className="w-4 h-4" />
+                    Explorar Tendencias <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" />
                   </Link>
                 </Button>
                 <Button variant="outline" shape="md" size="lg" asChild>
@@ -214,10 +214,12 @@ export default function Home() {
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 stagger-children">
             {DISEASES.map((d, i) => (
-              <div key={i} className="bg-(--color-surface) border border-(--color-border) rounded-md p-5 text-center hover:border-(--color-border-strong) transition-all hover:shadow-sm">
-                <span className="text-3xl mb-3 block">{d.emoji}</span>
-                <h3 className="font-bold text-(--color-primary) text-base">{d.name}</h3>
-                <div className="mt-3">
+              <div key={i} className="group bg-(--color-surface) border border-(--color-border) rounded-md p-6 text-center hover:border-(--color-border-strong) transition-all hover:shadow-sm flex flex-col items-center">
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 transition-transform group-hover:scale-110 ${d.color}`}>
+                  <d.icon className="w-5 h-5" />
+                </div>
+                <h3 className="font-bold text-(--color-primary) text-base mb-2">{d.name}</h3>
+                <div>
                   <span className={`inline-flex text-[10px] font-display uppercase tracking-wider px-2 py-0.5 rounded-sm font-semibold ${d.color}`}>
                     SIVIGILA
                   </span>

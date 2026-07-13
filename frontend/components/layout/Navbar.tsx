@@ -44,16 +44,18 @@ export function Navbar() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`relative flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium rounded-sm transition-all ${
+                  className={`relative group flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold rounded-md transition-all duration-200 ${
                     isActive
-                      ? "text-[--color-tertiary] bg-[--color-tertiary-alpha]"
-                      : "text-[--color-secondary] hover:text-[--color-primary] hover:bg-[--color-surface-hover]"
+                      ? "text-[var(--color-tertiary)] bg-[var(--color-tertiary-alpha)]"
+                      : "text-[var(--color-secondary)] hover:text-[var(--color-primary)] hover:bg-[var(--color-surface-hover)]"
                   }`}
                 >
                   {link.label}
-                  {isActive && (
-                    <span className="absolute bottom-0 left-3 right-3 h-0.5 bg-[--color-tertiary] rounded-full" />
-                  )}
+                  <span
+                    className={`absolute bottom-0 left-3.5 right-3.5 h-[2px] bg-[var(--color-tertiary)] rounded-full transition-transform duration-300 origin-center ${
+                      isActive ? "scale-x-100" : "scale-x-0 group-hover:scale-x-75"
+                    }`}
+                  />
                 </Link>
               )
             })}
@@ -62,12 +64,12 @@ export function Navbar() {
           {/* Right side */}
           <div className="flex items-center gap-3">
             {/* Live indicator */}
-            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-[--color-border] bg-[--color-surface]">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full rounded-full bg-[--color-success] opacity-75 animate-ping" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-[--color-success]" />
+            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-emerald-500/20 bg-emerald-500/5 shadow-[0_0_8px_rgba(16,185,129,0.05)]">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75 animate-ping" />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
               </span>
-              <span className="text-[10px] font-(family-name:--font-display) uppercase tracking-wider text-[--color-success] font-semibold">
+              <span className="text-[9px] font-(family-name:--font-display) uppercase tracking-widest text-emerald-600 font-bold">
                 Live
               </span>
             </div>
