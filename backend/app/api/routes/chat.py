@@ -8,6 +8,7 @@ from app.schemas.epidemiology import ChatRequest, ChatResponse, ChatSource
 from app.services.epidemiology import VALID_DISEASES, get_history, get_last_known_features
 from app.services import rag
 from app.core.db import get_db_connection
+from app.core.epi_date import find_date_in_text
 
 # Importación opcional de predict_cases (evita cargar dependencias pesadas de ML)
 try:
@@ -287,6 +288,8 @@ def _detect_intent(question: str) -> dict:
             region_norm = rn
             break
 
+    fecha = find_date_in_text(question)
+
     return {
         "disease": disease,
         "departamento_code": departamento_code,
@@ -295,6 +298,7 @@ def _detect_intent(question: str) -> dict:
         "wants_national": wants_national,
         "wants_region": wants_region,
         "region_norm": region_norm,
+        "fecha": fecha,
     }
 
 
@@ -358,6 +362,20 @@ def _document_snippets(question: str, limit: int = 3) -> list[ChatSource]:
 def _build_answer(question: str, intent: dict) -> tuple[str, list[ChatSource]]:
     sources = _document_snippets(question)
     parts: list[str] = []
+
+    fecha = intent.get("fecha")
+    if fecha is not None:
+        parts.append(
+            f"Fecha calculada: {fecha.as_context_line()} "
+            f"Nota: si se pide una simulación o predicción para esta fecha, "
+            f"aclara que es una proyección hipotética fuera del horizonte "
+            f"de validación del modelo si epi_year excede el año actual + unas pocas semanas."
+        )
+        sources.append(ChatSource(
+            title="fecha_calculada",
+            excerpt=fecha.as_context_line(),
+            source_type="data",
+        ))
 
     disease = intent["disease"]
     depto = intent["departamento_code"]

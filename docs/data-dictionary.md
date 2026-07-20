@@ -80,6 +80,8 @@ Esta sección existe para que el asistente de RAG pueda resolver referencias tem
 | Sábado | 6 |
 | Domingo | 7 |
 
+> ⚠️ Importante — lo que esta tabla **no** hace: es solo una traducción nombre↔número una vez que el día ISO ya se conoce. **No sirve para calcular a qué día de la semana cae una fecha arbitraria** (ej. "1 de abril de 2030"). Ese cálculo lo debe hacer siempre el backend en Python (`date.isocalendar()`), nunca el LLM — los modelos de lenguaje calculan mal la aritmética de calendario, sobre todo en fechas futuras lejanas. El resultado ya calculado (día, `epi_week`, `epi_year`) llega al RAG como un `ChatSource` de tipo `data` para que el modelo lo **cite**, no lo infiera. Ver `app/core/epi_date.py`.
+
 ### Alias comunes de enfermedades (para resolver sinónimos en preguntas de usuario)
 
 | Alias / término coloquial | Valor normalizado en `disease` |
