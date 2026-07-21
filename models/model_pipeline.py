@@ -99,11 +99,16 @@ def train_model(X_train: pd.DataFrame, y_train: pd.Series) -> XGBRegressor:
 
 def fit_prophet_series(df_series: pd.DataFrame):
     from prophet import Prophet
+    from prophet.make_holidays import make_holidays_df
 
+    # Add Colombian holidays
+    colombia_holidays = make_holidays_df(year_list=df_series['ds'].dt.year.unique(), country='CO')
+    
     model = Prophet(
         yearly_seasonality=True,
         weekly_seasonality=True,
         daily_seasonality=False,
+        holidays=colombia_holidays,
         interval_width=0.9,
     )
     model.fit(df_series)

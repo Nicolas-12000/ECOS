@@ -1,12 +1,15 @@
 import logging
 import re
+import statistics
+import datetime as dt
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 
 from app.schemas.epidemiology import ChatRequest, ChatResponse, ChatSource
-from app.services.epidemiology import VALID_DISEASES, get_history, get_last_known_features
+from app.services.epidemiology import VALID_DISEASES, get_history, get_last_known_features, get_mobility, _load_departamento_coords
 from app.services import rag
+from app.services.weather import fetch_open_meteo_weekly
 from app.core.db import get_db_connection
 from app.core.epi_date import find_date_in_text
 
@@ -239,6 +242,131 @@ def _query_region_summary(region_norm: str, disease: str | None = None) -> dict 
     }
 
 
+def _percentile(values: list[int], p: float) -> float:
+    """Percentil por interpolación lineal, sin depender de numpy."""
+    if not values:
+        return 0.0
+    values = sorted(values)
+    k = (len(values) - 1) * (p / 100)
+    f, c = int(k), min(int(k) + 1, len(values) - 1)
+    if f == c:
+        return float(values[f])
+    return round(values[f] * (c - k) + values[c] * (k - f), 1)
+
+
+def _query_seasonal_projection(
+    epi_week: int,
+    disease: str | None,
+    departamento_code: str | None,
+    years_exclude: tuple[int, ...] = (2020, 2021),
+) -> dict | None:
+    """Canal endémico histórico para una semana epidemiológica dada.
+
+    Misma metodología que la definición de 'brote' del proyecto (percentil
+    75 del histórico de la misma semana, excluyendo años de ruido COVID).
+    Sirve como proyección estacional cuando no hay modelo entrenado para
+    la fecha consultada (ej. años futuros).
+    """
+    filters = ["epi_week = %s"]
+    params: list = [epi_week]
+    if disease:
+        filters.append("disease = %s")
+        params.append(disease)
+    if departamento_code:
+        filters.append("departamento_code = %s")
+        params.append(departamento_code)
+    if years_exclude:
+        placeholders = ",".join(["%s"] * len(years_exclude))
+        filters.append(f"epi_year NOT IN ({placeholders})")
+        params.extend(years_exclude)
+
+    rows = _db_execute(f"""
+        SELECT epi_year, SUM(cases_total)
+        FROM public.fact_core_weekly
+        WHERE {" AND ".join(filters)}
+        GROUP BY epi_year
+        ORDER BY epi_year
+    """, tuple(params))
+
+    if not rows:
+        return None
+
+    years = [r[0] for r in rows]
+    values = [int(r[1]) for r in rows]
+    if len(values) < 3:
+        return None  # muy pocos años como para dar un rango con sentido
+
+    return {
+        "years": years,
+        "n_years": len(years),
+        "p25": _percentile(values, 25),
+        "p50": _percentile(values, 50),
+        "p75": _percentile(values, 75),
+        "p90": _percentile(values, 90),
+        "mean": round(statistics.mean(values), 1),
+    }
+
+
+def _query_predictions(
+    disease: str | None,
+    departamento_code: str | None,
+    municipio_code: str | None,
+    epi_year: int | None = None,
+    epi_week: int | None = None,
+    limit: int = 4,
+) -> list[dict] | None:
+    """Query precomputed predictions from Supabase."""
+    filters = []
+    params = []
+    if disease:
+        filters.append("disease = %s")
+        params.append(disease)
+    if departamento_code:
+        filters.append("departamento_code = %s")
+        params.append(departamento_code)
+    if municipio_code:
+        filters.append("municipio_code = %s")
+        params.append(municipio_code)
+    if epi_year:
+        filters.append("epi_year = %s")
+        params.append(epi_year)
+    if epi_week:
+        filters.append("epi_week = %s")
+        params.append(epi_week)
+
+    rows = _db_execute(f"""
+        SELECT 
+            departamento_code, municipio_code, disease,
+            epi_year, epi_week, week_start_date,
+            predicted_cases, outbreak_flag, outbreak_threshold,
+            endemic_risk, shap_top_factors
+        FROM public.predictions
+        WHERE {" AND ".join(filters) if filters else "1=1"}
+        ORDER BY week_start_date DESC
+        LIMIT %s
+    """, tuple(params + [limit]))
+
+    if not rows:
+        return None
+
+    predictions = []
+    for row in rows:
+        predictions.append({
+            "departamento_code": row[0],
+            "municipio_code": row[1],
+            "disease": row[2],
+            "epi_year": row[3],
+            "epi_week": row[4],
+            "week_start_date": row[5],
+            "predicted_cases": row[6],
+            "outbreak_flag": row[7],
+            "outbreak_threshold": row[8],
+            "endemic_risk": row[9],
+            "shap_top_factors": row[10],
+        })
+    return predictions
+
+
 # ---------------------------------------------------------------------------
 # Question type detection
 # ---------------------------------------------------------------------------
@@ -364,34 +492,145 @@ def _build_answer(question: str, intent: dict) -> tuple[str, list[ChatSource]]:
     parts: list[str] = []
 
     fecha = intent.get("fecha")
-    if fecha is not None:
-        parts.append(
-            f"Fecha calculada: {fecha.as_context_line()} "
-            f"Nota: si se pide una simulación o predicción para esta fecha, "
-            f"aclara que es una proyección hipotética fuera del horizonte "
-            f"de validación del modelo si epi_year excede el año actual + unas pocas semanas."
+    disease = intent["disease"]
+    depto = intent["departamento_code"]
+    muni = intent["municipio_code"]
+
+    # First, try to get precomputed predictions
+    predictions = None
+    if fecha or disease or depto or muni:
+        predictions = _query_predictions(
+            disease=disease,
+            departamento_code=depto,
+            municipio_code=muni,
+            epi_year=fecha.epi_year if fecha else None,
+            epi_week=fecha.epi_week if fecha else None,
+            limit=4,
         )
+
+    if predictions:
+        # Disclaimer about data sources (more human, no variable names)
+        disclaimer = (
+            "⚠️ Nota importante: Las predicciones se basan en información de diversas fuentes verificadas, "
+            "como datos históricos de salud, clima, tendencias de búsqueda, noticias relevantes, "
+            "movilidad de personas y coberturas de vacunación. Usamos un modelo combinado de Prophet y XGBoost "
+            "para generarlas, y SHAP para entender qué factores influyen más."
+        )
+        parts.append(disclaimer)
+        sources.append(ChatSource(
+            title="metodologia_prediccion",
+            excerpt=disclaimer,
+            source_type="data",
+        ))
+
+        for pred in predictions:
+            location = pred['departamento_code'] or 'Colombia'
+            pred_text = (
+                f"Para {pred['disease']} en {location}, estimamos alrededor de {round(pred['predicted_cases'], 1)} casos para la semana {pred['epi_week']}/{pred['epi_year']}. "
+                f"El nivel de riesgo endémico es {pred['endemic_risk']}, y {'sí hay' if pred['outbreak_flag'] else 'no hay'} señal de brote."
+            )
+            parts.append(pred_text)
+            sources.append(ChatSource(
+                title="prediccion_modelo",
+                excerpt=pred_text,
+                source_type="data",
+            ))
+            if pred["shap_top_factors"]:
+                # Make SHAP factors more human-readable
+                readable_factors = []
+                for factor, value in pred["shap_top_factors"].items():
+                    # Map internal variable names to friendly names
+                    friendly_name = {
+                        'temp_avg_c': 'temperatura promedio',
+                        'temp_min_c': 'temperatura mínima',
+                        'temp_max_c': 'temperatura máxima',
+                        'precipitation_mm': 'precipitación',
+                        'mobility_in': 'flujo de personas entrantes',
+                        'mobility_out': 'flujo de personas salientes',
+                        'mobility_index': 'índice de movilidad',
+                        'trends_score': 'interés en búsqueda (Google Trends)',
+                        'rss_mentions': 'menciones en noticias',
+                        'signals_score': 'señales tempranas',
+                        'vaccination_coverage_pct': 'cobertura de vacunación',
+                        'rips_visits_total': 'atenciones médicas (RIPS)',
+                        'cases_lag_1': 'casos de la semana pasada',
+                        'cases_lag_2': 'casos de hace dos semanas',
+                        'cases_lag_4': 'casos de hace cuatro semanas',
+                        'epi_year': 'año epidemiológico',
+                        'epi_week': 'semana epidemiológica',
+                    }.get(factor, factor)
+                    
+                    direction = "aumenta" if value > 0 else "disminuye"
+                    readable_factors.append(f"{friendly_name} ({direction} el riesgo)")
+                
+                shap_text = "Los factores que más influyen en esta estimación son: " + ", ".join(readable_factors) + "."
+                parts.append(shap_text)
+                sources.append(ChatSource(
+                    title="explicacion_factores",
+                    excerpt=shap_text,
+                    source_type="data",
+                ))
+    elif fecha is not None:
+        parts.append(fecha.as_context_line())
         sources.append(ChatSource(
             title="fecha_calculada",
             excerpt=fecha.as_context_line(),
             source_type="data",
         ))
 
-    disease = intent["disease"]
-    depto = intent["departamento_code"]
-    muni = intent["municipio_code"]
+        seasonal = _query_seasonal_projection(fecha.epi_week, disease, depto)
+        if seasonal:
+            ambito = f"departamento {depto}" if depto else "Colombia (nacional)"
+            enf = disease if disease else "todas las enfermedades"
+            proj_text = (
+                f"Proyección estacional para la semana epidemiológica {fecha.epi_week:02d} "
+                f"({fecha.week_start_date.isoformat()} a {fecha.week_end_date.isoformat()}) en {ambito}, "
+                f"{enf} — basada en {seasonal['n_years']} años históricos "
+                f"({', '.join(str(y) for y in seasonal['years'])}, excluyendo 2020-2021 por ruido COVID): "
+                f"mediana histórica {seasonal['p50']} casos; "
+                f"canal endémico normal entre {seasonal['p25']} (p25) y {seasonal['p75']} (p75) casos; "
+                f"por encima de {seasonal['p75']} se consideraría brote según la metodología del proyecto; "
+                f"por encima de {seasonal['p90']} (p90) se consideraría epidemia."
+            )
+            parts.append(proj_text)
+            sources.append(ChatSource(
+                title="proyeccion_estacional_canal_endemico",
+                excerpt=proj_text,
+                source_type="data",
+            ))
+            parts.append(
+                "Nota: esto es una proyección estadística basada en el patrón histórico de esa "
+                "semana del año (canal endémico), no una salida del modelo Prophet+XGBoost — ese "
+                "modelo necesita variables exógenas (clima, movilidad, Trends) que no existen para "
+                "fechas tan lejanas en el futuro. Interprétese como un rango de referencia, no como "
+                "una cifra puntual predicha."
+            )
+        else:
+            parts.append(
+                f"No hay suficiente historial para construir una proyección estacional confiable "
+                f"para la semana epidemiológica {fecha.epi_week:02d}"
+                + (f" en el departamento {depto}" if depto else "")
+                + (f" para {disease}" if disease else "") + "."
+            )
 
-    # ── 1. Municipio + enfermedad → histórico local ──────────────────────────
+
+
+    # ── 1. Municipio + enfermedad → histórico local + movilidad + conclusiones ──────────────────────────
     if muni and disease:
         try:
             history = get_history(muni, disease, limit=8)
+            mobility = get_mobility(muni, limit=4)
         except FileNotFoundError:
             history = None
+            mobility = pd.DataFrame()
+        
         if history is not None and not history.empty:
             latest = history.iloc[0]
             recent = history.head(4)["cases_total"].tolist()
             trend = ("ascendente" if recent[0] > recent[-1]
                      else "descendente" if recent[0] < recent[-1] else "estable")
+            
+            # Historical cases info
             parts.append(
                 f"Municipio {muni} | {disease}: {int(latest['cases_total'])} casos en la última semana "
                 f"(tendencia {trend}). Últimas 4 semanas: {recent}."
@@ -401,27 +640,123 @@ def _build_answer(question: str, intent: dict) -> tuple[str, list[ChatSource]]:
                 excerpt=f"{muni}/{disease}: última semana {int(latest['cases_total'])} casos, tendencia {trend}.",
                 source_type="data",
             ))
+            
+            # Mobility info if available
+            if not mobility.empty:
+                latest_mob = mobility.iloc[0]
+                mob_in = int(latest_mob.get('mobility_in', 0))
+                mob_out = int(latest_mob.get('mobility_out', 0))
+                mob_index = round(latest_mob.get('mobility_index', 0), 1)
+                mob_text = (
+                    f"En la última semana registrada, hubo alrededor de {mob_in} personas que llegaron a {muni} y {mob_out} que salieron. "
+                    f"El índice de movilidad para la localidad es de {mob_index}."
+                )
+                parts.append(mob_text)
+                sources.append(ChatSource(
+                    title="movilidad_municipio",
+                    excerpt=mob_text,
+                    source_type="data",
+                ))
+                
+                # AI-generated conclusions with disclaimer (more human)
+                concl_text = (
+                    "🤖 Interpretación sugerida por IA basada en datos de ECOS (esto es solo una guía, no reemplaza el juicio de un profesional): "
+                )
+                if trend == "ascendente" and latest_mob.get("mobility_in", 0) > 100:
+                    concl_text += (
+                        "Como la cantidad de casos está aumentando y hay bastante movimiento de personas entrando al municipio, "
+                        "podría haber un riesgo de que los casos sigan creciendo en las próximas semanas. Sería buena idea intensificar las medidas de vigilancia."
+                    )
+                elif trend == "descendente":
+                    concl_text += (
+                        "¡Bueno! La cantidad de casos está bajando, lo cual es una señal positiva. Sería bueno seguir con las medidas de prevención para mantener esta tendencia."
+                    )
+                else:
+                    concl_text += "La situación se ve estable por ahora. Es bueno seguir con la vigilancia normal para mantenerla así."
+                
+                parts.append(concl_text)
+                sources.append(ChatSource(
+                    title="conclusiones_ia",
+                    excerpt=concl_text,
+                    source_type="data",
+                ))
+        
         return " ".join(parts) or "No se encontraron datos para ese municipio.", sources
 
-    # ── 2. Clima por departamento ────────────────────────────────────────────
+    # ── 2. Clima por departamento (incluye datos en vivo de Open-Meteo) ────────────────────────────────────────────
     if intent["wants_climate"] and depto:
+        # First try to get historical data from our DB
         climate = _query_climate_by_depto(depto)
-        if climate:
-            parts.append(
-                f"Datos climáticos del departamento {depto} "
-                f"(período {climate['data_from']} – {climate['data_to']}): "
-                f"Temperatura promedio: {climate['avg_temp']}°C "
-                f"(mín {climate['min_temp']}°C / máx {climate['max_temp']}°C). "
-                f"Precipitación promedio: {climate['avg_precip']} mm "
-                f"(máximo registrado: {climate['max_precip']} mm)."
-            )
-            sources.append(ChatSource(
-                title="clima_departamento",
-                excerpt=f"Depto {depto}: T°={climate['avg_temp']}°C, Precip={climate['avg_precip']}mm.",
-                source_type="data",
-            ))
+        
+        # Try to get live Open-Meteo data
+        dept_coords = _load_departamento_coords()
+        live_weather = None
+        if depto in dept_coords:
+            lat, lon = dept_coords[depto]
+            try:
+                today = dt.date.today()
+                start_date = (today - dt.timedelta(days=7)).isoformat()
+                end_date = (today + dt.timedelta(days=14)).isoformat()
+                live_weather = fetch_open_meteo_weekly(lat, lon, start_date, end_date)
+            except Exception as e:
+                logger.error(f"Error fetching live Open-Meteo data for {depto}: {e}")
+        
+        # Build climate info
+        if climate or live_weather:
+            if climate:
+                parts.append(
+                    f"Datos históricos del clima en el departamento {depto} "
+                    f"(período {climate['data_from']} – {climate['data_to']}): "
+                    f"La temperatura promedio es de {climate['avg_temp']}°C "
+                    f"(mínima {climate['min_temp']}°C, máxima {climate['max_temp']}°C). "
+                    f"La precipitación promedio es de {climate['avg_precip']} mm "
+                    f"(el máximo registrado es {climate['max_precip']} mm)."
+                )
+                sources.append(ChatSource(
+                    title="clima_historico_departamento",
+                    excerpt=f"Depto {depto} (histórico): temp promedio {climate['avg_temp']}°C, precip promedio {climate['avg_precip']}mm.",
+                    source_type="data",
+                ))
+            
+            if live_weather and len(live_weather) > 0:
+                latest = live_weather[-1]
+                forecast = live_weather[0] if len(live_weather) > 1 else None
+                live_parts = []
+                live_parts.append(f"Datos del clima recientes para la semana de {latest.week_start_date} (de Open-Meteo): ")
+                if latest.temperature_2m_mean:
+                    live_parts.append(f"La temperatura promedio fue de {round(latest.temperature_2m_mean, 1)}°C")
+                if latest.temperature_2m_min and latest.temperature_2m_max:
+                    live_parts.append(f"con mínimas de {round(latest.temperature_2m_min, 1)}°C y máximas de {round(latest.temperature_2m_max, 1)}°C")
+                if latest.precipitation_sum:
+                    live_parts.append(f"Hubo {round(latest.precipitation_sum, 1)} mm de lluvia")
+                if latest.relative_humidity_2m_mean:
+                    live_parts.append(f"y la humedad relativa promedio fue del {round(latest.relative_humidity_2m_mean, 1)}%")
+                
+                live_text = " ".join(live_parts) + "."
+                parts.append(live_text)
+                sources.append(ChatSource(
+                    title="clima_vivo_open_meteo",
+                    excerpt=f"Depto {depto} (Open-Meteo): {live_text}",
+                    source_type="data",
+                ))
+                
+                if forecast:
+                    forecast_parts = []
+                    forecast_parts.append(f"Para la próxima semana ({forecast.week_start_date}), el pronóstico es: ")
+                    if forecast.temperature_2m_mean:
+                        forecast_parts.append(f"Temperatura promedio esperada: {round(forecast.temperature_2m_mean, 1)}°C")
+                    if forecast.precipitation_sum:
+                        forecast_parts.append(f"Precipitación esperada: {round(forecast.precipitation_sum, 1)} mm")
+                    forecast_text = " ".join(forecast_parts) + "."
+                    parts.append(forecast_text)
+                    sources.append(ChatSource(
+                        title="pronostico_open_meteo",
+                        excerpt=f"Depto {depto} (pronóstico Open-Meteo): {forecast_text}",
+                        source_type="data",
+                    ))
+        
         else:
-            parts.append(f"No se encontraron datos climáticos para el departamento {depto} en la base de datos.")
+            parts.append(f"No se encontraron datos climáticos para el departamento {depto}.")
         
         # Si también pregunta por casos junto al clima, añadirlos
         if disease:
