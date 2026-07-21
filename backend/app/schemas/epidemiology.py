@@ -79,6 +79,7 @@ class ChatRequest(BaseModel):
     disease: Optional[str] = None
     municipio_code: Optional[str] = None
     departamento_code: Optional[str] = None
+    session_id: Optional[str] = None  # Optional session ID for chat history
 
 
 class ChatSource(BaseModel):
@@ -94,6 +95,7 @@ class ChatResponse(BaseModel):
     disease: Optional[str] = None
     municipio_code: Optional[str] = None
     departamento_code: Optional[str] = None
+    session_id: Optional[str] = None  # Session ID returned to client
 
 
 # ─── /shap ────────────────────────────────────────────────────────────────

@@ -50,7 +50,7 @@ def search(query: str, k: int = 3, threshold: float = 0.4) -> List[Tuple[str, st
             with conn.cursor() as cur:
                 # 1 - (embedding <=> vector) is cosine similarity
                 cur.execute("""
-                    SELECT title, content, 1 - (embedding <=> %s::vector) AS similarity
+                    SELECT metadata->>'title' as title, content, 1 - (embedding <=> %s::vector) AS similarity
                     FROM public.knowledge_base
                     WHERE 1 - (embedding <=> %s::vector) > %s
                     ORDER BY embedding <=> %s::vector

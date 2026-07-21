@@ -129,6 +129,14 @@ def main() -> int:
     df_base = load_dataset(Path(args.input_parquet), Path(args.input_csv))
     df_base["week_start_date"] = pd.to_datetime(df_base["week_start_date"], errors="coerce")
     df_base = df_base.dropna(subset=["week_start_date", "epi_year", "epi_week", "cases_total"])
+    
+    # Filter to focus on departments with the most complete data first
+    target_departments = {"05", "52", "76"}  # Antioquia, Nariño, Valle del Cauca
+    if {"departamento_code"}.issubset(df_base.columns):
+        depto_filter = df_base["departamento_code"].isin(target_departments)
+        if depto_filter.sum() > 0:
+            print(f"[info] Filtrando a departamentos objetivo: {', '.join(target_departments)}")
+            df_base = df_base[depto_filter].copy()
 
     if {"trends_score", "rss_mentions", "signals_score"}.issubset(df_base.columns):
         df = df_base.copy()

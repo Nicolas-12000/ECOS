@@ -33,6 +33,7 @@ export function GlobalChatBubble() {
   const [messages, setMessages] = useState<ChatMessage[]>([WELCOME])
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [sessionId, setSessionId] = useState<string | null>(null)
   const endRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -49,15 +50,43 @@ export function GlobalChatBubble() {
       const res = await fetch(`${API_BASE}/api/v1/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: msg }),
+        body: JSON.stringify({ question: msg, session_id: sessionId }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.detail || "Error")
+      setSessionId(data.session_id)
       setMessages(p => [...p, { role: "assistant", content: data.answer, sources: data.sources }])
     } catch {
       setMessages(p => [...p, { role: "assistant", content: "⚠️ No pudimos conectarnos en este momento. Intenta de nuevo en unos minutos." }])
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const clearChat = async () => {
+    console.log("=== clearChat CALLED ==="); // Debug log
+    console.log("Current sessionId:", sessionId);
+    console.log("Current messages length:", messages.length);
+    try {
+      if (sessionId) {
+        console.log("Calling clear chat API...");
+        const res = await fetch(`${API_BASE}/api/v1/chat/clear`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ session_id: sessionId }),
+        });
+        console.log("Clear chat API response status:", res.status);
+        console.log("Clear chat API response ok:", res.ok);
+      } else {
+        console.log("No sessionId, skipping API call");
+      }
+    } catch (e) {
+      console.error("Error clearing chat API call:", e);
+    } finally {
+      console.log("Resetting local state...");
+      setMessages([WELCOME]);
+      setSessionId(null);
+      console.log("=== Local state reset complete! ===");
     }
   }
 
@@ -118,7 +147,15 @@ export function GlobalChatBubble() {
           </div>
           <div className="flex items-center gap-1">
             {messages.length > 1 && (
-              <button onClick={() => setMessages([WELCOME])} className="p-1.5 rounded-md transition-colors hover:bg-red-50" style={{ color: "#9CA3AF" }} aria-label="Limpiar">
+              <button 
+                onClick={() => { 
+                  console.log("Trash button clicked!"); 
+                  clearChat(); 
+                }} 
+                className="p-1.5 rounded-md transition-colors hover:bg-red-50" 
+                style={{ color: "#9CA3AF" }} 
+                aria-label="Limpiar"
+              >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
             )}
